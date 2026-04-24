@@ -1,0 +1,19 @@
+{
+  "backend": "ollama",
+  "model": "velvet-2b-cpu-v1",
+  "test_name": "stress",
+  "timestamp": "2026-04-24T17:54:15.141876+00:00",
+  "iterations": 10,
+  "success_rate": 0.0,
+  "latency_mean_s": 2.14,
+  "latency_p50_s": 2.19,
+  "latency_p90_s": 2.23,
+  "tokens_per_second": 0,
+  "max_ram_mb": 0,
+  "details": {
+    "concurrent_users": 10,
+    "total_burst_s": 2.23,
+    "fastest_s": 1.69,
+    "slowest_s": 2.23
+  }
+}

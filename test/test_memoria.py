@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 
 from test.adapters import BackendAdapter, create_adapter
 from test.models import GenerateResponse, TestResult
+from test.stats_utils import percentile, warmup
 
 
 # --- Constantes del test ---
@@ -40,14 +41,14 @@ def extract_text_from_pdfs(files):
     return full_text
 
 
-def call_velvet(adapter: BackendAdapter, model: str, prompt: str, system_msg: str) -> tuple:
+def call_velvet(adapter: BackendAdapter, model: str, prompt: str, system_msg: str) -> GenerateResponse:
     """
     Envía una solicitud de generación usando el adaptador de backend.
 
-    Retorna una tupla (texto_respuesta, latencia_segundos).
+    Retorna el GenerateResponse completo (texto, latencia, tokens, TPS).
     """
     try:
-        response: GenerateResponse = adapter.generate(
+        return adapter.generate(
             model=model,
             prompt=prompt,
             system=system_msg,
@@ -57,10 +58,9 @@ def call_velvet(adapter: BackendAdapter, model: str, prompt: str, system_msg: st
                 "stop": ["<|system|>", "<|end|>", "</query>", "<|user|>"]
             },
         )
-        return response.text, response.latency
     except Exception as e:
         print(f"Error API: {e}")
-        return "", 0.0
+        return GenerateResponse(text="", latency=0.0, tokens_generated=0, tokens_per_second=0.0)
 
 
 def run_test(adapter: BackendAdapter, model: str) -> TestResult:
@@ -106,9 +106,12 @@ FRAGMENTO B (Anexo): Se deroga el Fragmento A; la capacidad vigente para este se
 Pregunta: Según el anexo vigente, ¿cuál es la capacidad de contexto para este servidor? Responde solo la cifra exacta."""
 
     tiempos_t1, tiempos_t2 = [], []
+    tps_t1, tps_t2 = [], []
     exitos_t1, exitos_t2 = 0, 0
-    # Recopilar tokens por segundo para el resultado estructurado
-    tps_values = []
+
+    # Warm-up: ejecutar una solicitud descartable para evitar cold-start
+    print("Ejecutando warm-up del modelo...")
+    warmup(adapter, model)
 
     print(f"Comenzando ejecución de {ITERACIONES} ciclos...\n")
 
@@ -116,28 +119,32 @@ Pregunta: Según el anexo vigente, ¿cuál es la capacidad de contexto para este
         print(f"--- Iteración {i}/{ITERACIONES} ---")
 
         # Test 1: Needle-in-haystack (contexto largo)
-        resp_t1, lat_t1 = call_velvet(adapter, model, prompt_test_1, "Responde solo con la plantilla completada.")
-        tiempos_t1.append(lat_t1)
-        print(f"  [T1] Respuesta:\n{resp_t1.strip()}")
+        resp_t1 = call_velvet(adapter, model, prompt_test_1, "Responde solo con la plantilla completada.")
+        tiempos_t1.append(resp_t1.latency)
+        if resp_t1.tokens_per_second > 0:
+            tps_t1.append(resp_t1.tokens_per_second)
+        print(f"  [T1] Respuesta:\n{resp_t1.text.strip()}")
 
-        if "token-xz-2026" in resp_t1.lower() and "2029" in resp_t1.lower() and "srv-lima-platinum" in resp_t1.lower():
+        if "token-xz-2026" in resp_t1.text.lower() and "2029" in resp_t1.text.lower() and "srv-lima-platinum" in resp_t1.text.lower():
             exitos_t1 += 1
             print("  [T1] Resultado: EXITOSO")
         else:
             print("  [T1] Resultado: FALLO")
 
         # Test 2: Razonamiento sobre derogación
-        resp_t2, lat_t2 = call_velvet(adapter, model, prompt_test_2, "Eres un analista jurídico. Responde solo con el dato oficial.")
-        tiempos_t2.append(lat_t2)
-        print(f"  [T2] Respuesta: {resp_t2.strip()}")
+        resp_t2 = call_velvet(adapter, model, prompt_test_2, "Eres un analista jurídico. Responde solo con el dato oficial.")
+        tiempos_t2.append(resp_t2.latency)
+        if resp_t2.tokens_per_second > 0:
+            tps_t2.append(resp_t2.tokens_per_second)
+        print(f"  [T2] Respuesta: {resp_t2.text.strip()}")
 
-        if "16k" in resp_t2.lower() and "128k" not in resp_t2.lower():
+        if "16k" in resp_t2.text.lower() and "128k" not in resp_t2.text.lower():
             exitos_t2 += 1
             print("  [T2] Resultado: EXITOSO")
         else:
             print("  [T2] Resultado: FALLO")
 
-        print(f"  > Latencias -> T1: {lat_t1:.2f}s | T2: {lat_t2:.2f}s\n")
+        print(f"  > Latencias -> T1: {resp_t1.latency:.2f}s | T2: {resp_t2.latency:.2f}s\n")
 
     # --- Salida por consola original para compatibilidad ---
     print("\n" + "="*50)
@@ -148,16 +155,25 @@ Pregunta: Según el anexo vigente, ¿cuál es la capacidad de contexto para este
     print("="*50)
 
     # --- Construir TestResult estructurado ---
-    todas_latencias = tiempos_t1 + tiempos_t2
-    todas_latencias_sorted = sorted(todas_latencias)
-    total_exitos = exitos_t1 + exitos_t2
-    total_iteraciones = ITERACIONES * 2  # Dos sub-tests por iteración
+    # Calcular TPS promedio de todas las respuestas válidas
+    all_tps = tps_t1 + tps_t2
+    avg_tps = statistics.mean(all_tps) if all_tps else 0.0
 
-    # Calcular percentiles
-    p50_idx = int(len(todas_latencias_sorted) * 0.5)
-    p90_idx = int(len(todas_latencias_sorted) * 0.9)
-    latency_p50 = todas_latencias_sorted[min(p50_idx, len(todas_latencias_sorted) - 1)]
-    latency_p90 = todas_latencias_sorted[min(p90_idx, len(todas_latencias_sorted) - 1)]
+    total_exitos = exitos_t1 + exitos_t2
+    total_llamadas = ITERACIONES * 2  # Dos sub-tests por iteración
+
+    # Percentiles calculados POR SUB-TEST (no mezclados) y luego
+    # se reporta el peor caso (máximo) como métrica conservadora del test.
+    # Esto evita mezclar distribuciones heterogéneas.
+    latency_p50_t1 = percentile(tiempos_t1, 0.5) if tiempos_t1 else 0.0
+    latency_p90_t1 = percentile(tiempos_t1, 0.9) if tiempos_t1 else 0.0
+    latency_p50_t2 = percentile(tiempos_t2, 0.5) if tiempos_t2 else 0.0
+    latency_p90_t2 = percentile(tiempos_t2, 0.9) if tiempos_t2 else 0.0
+
+    # Latencia media ponderada: promedio de las medias de cada sub-test
+    mean_t1 = statistics.mean(tiempos_t1) if tiempos_t1 else 0.0
+    mean_t2 = statistics.mean(tiempos_t2) if tiempos_t2 else 0.0
+    latency_mean = (mean_t1 + mean_t2) / 2
 
     # Determinar nombre del backend desde el adaptador
     backend_name = type(adapter).__name__.replace("Adapter", "").lower()
@@ -168,23 +184,30 @@ Pregunta: Según el anexo vigente, ¿cuál es la capacidad de contexto para este
         test_name="memoria",
         timestamp=datetime.now(timezone.utc).isoformat(),
         iterations=ITERACIONES,
-        success_rate=total_exitos / total_iteraciones if total_iteraciones > 0 else 0.0,
-        latency_mean_s=statistics.mean(todas_latencias) if todas_latencias else 0.0,
-        latency_p50_s=latency_p50,
-        latency_p90_s=latency_p90,
-        tokens_per_second=statistics.mean(tps_values) if tps_values else 0.0,
+        success_rate=total_exitos / total_llamadas if total_llamadas > 0 else 0.0,
+        latency_mean_s=latency_mean,
+        latency_p50_s=max(latency_p50_t1, latency_p50_t2),
+        latency_p90_s=max(latency_p90_t1, latency_p90_t2),
+        tokens_per_second=avg_tps,
         max_ram_mb=0.0,
         details={
+            "total_requests": total_llamadas,
             "sub_tests": [
                 {
                     "name": "contexto",
                     "success_rate": exitos_t1 / ITERACIONES if ITERACIONES > 0 else 0.0,
-                    "latency_mean_s": statistics.mean(tiempos_t1) if tiempos_t1 else 0.0,
+                    "latency_mean_s": mean_t1,
+                    "latency_p50_s": latency_p50_t1,
+                    "latency_p90_s": latency_p90_t1,
+                    "tokens_per_second": statistics.mean(tps_t1) if tps_t1 else 0.0,
                 },
                 {
                     "name": "razonamiento",
                     "success_rate": exitos_t2 / ITERACIONES if ITERACIONES > 0 else 0.0,
-                    "latency_mean_s": statistics.mean(tiempos_t2) if tiempos_t2 else 0.0,
+                    "latency_mean_s": mean_t2,
+                    "latency_p50_s": latency_p50_t2,
+                    "latency_p90_s": latency_p90_t2,
+                    "tokens_per_second": statistics.mean(tps_t2) if tps_t2 else 0.0,
                 },
             ]
         },

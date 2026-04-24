@@ -1,0 +1,21 @@
+{
+  "backend": "vertex",
+  "model": "velvet-14b",
+  "test_name": "stress",
+  "timestamp": "2026-04-24T21:09:48.122865+00:00",
+  "iterations": 15,
+  "success_rate": 0.2,
+  "latency_mean_s": 0.5994951248168945,
+  "latency_p50_s": 0.2717442512512207,
+  "latency_p90_s": 1.7682552337646484,
+  "tokens_per_second": 0.0,
+  "max_ram_mb": 6993.55078125,
+  "details": {
+    "concurrent_users": 15,
+    "total_burst_time_s": 1.8995792865753174,
+    "max_cpu_percent": 14.0,
+    "max_ram_mb": 6993.55078125,
+    "fastest_request_s": 0.2293703556060791,
+    "slowest_request_s": 1.8950471878051758
+  }
+}

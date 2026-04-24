@@ -1,0 +1,25 @@
+{
+  "test": {
+    "id": "T6",
+    "num_parallel": 4,
+    "num_thread": 8,
+    "users": 4,
+    "num_ctx": 2048,
+    "desc": "Contexto reducido"
+  },
+  "metrics": {
+    "success": true,
+    "throughput": 14.7,
+    "latency_mean": 107.06,
+    "ttft_mean": 8.641,
+    "latency_p50": 115.18,
+    "latency_p90": 150.26,
+    "ttft_p50": 9.428,
+    "ttft_p90": 9.431,
+    "total_tokens": 2209,
+    "total_duration": 150.26,
+    "tps_per_user": 5.0,
+    "successful": 4,
+    "failed": 0
+  }
+}

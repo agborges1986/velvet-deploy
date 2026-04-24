@@ -23,22 +23,24 @@ services:
     volumes:
       - ollama_data:/root/.ollama
       - ./modelfiles:/modelfiles:ro
+      - /home/ec2-user/models:/models:ro
     environment:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_MAX_LOADED_MODELS=1
       - OLLAMA_KEEP_ALIVE=10m
-      - OLLAMA_NUM_PARALLEL=8
+      - OLLAMA_NUM_PARALLEL=4
+      - OLLAMA_NUM_THREAD=8
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 3
     # Límites de recursos para VM_OnPremise (EC2 32 vCPU, 64 GB RAM)
-    # mem_limit: 1.5× modelo más grande (Velvet-14B Q4_K_M ≈ 8.5 GB) → 13 GB
+    # mem_limit: modelo (~8.5 GB) + KV cache (~4 GB con ctx=4096 × paralelas) + overhead (~1 GB)
     # mem_reservation: mínimo garantizado para operación estable
     cpus: 32
-    mem_limit: 13g
-    mem_reservation: 8g
+    mem_limit: 20g
+    mem_reservation: 12g
 
   # ---------------------------------------------------------------------------
   # Servicio Caddy — Reverse proxy con autenticación Basic Auth

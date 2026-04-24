@@ -8,6 +8,7 @@ el runner de pruebas y el marco de comparación.
 from dataclasses import dataclass, field, asdict
 from typing import Any
 import json
+import os
 
 
 # --- Respuesta de generación ---
@@ -77,8 +78,24 @@ class OllamaConfig:
 
 @dataclass
 class VertexConfig:
-    """Configuración de conexión al backend Vertex AI."""
+    """Configuración de conexión al backend Vertex AI.
+
+    Lee valores por defecto de variables de entorno si están definidas:
+      - VERTEX_PROJECT: ID del proyecto GCP
+      - VERTEX_REGION: Región de GCP (default: us-central1)
+      - VERTEX_ENDPOINT_ID: ID numérico del endpoint de Vertex AI
+    """
     project: str = ""                        # ID del proyecto GCP
     region: str = "us-central1"              # Región de GCP
     endpoint_id: str = ""                    # ID del endpoint de Vertex AI
     timeout: int = 120                       # Timeout en segundos
+
+    def __post_init__(self) -> None:
+        """Carga valores desde variables de entorno si los campos están vacíos."""
+        if not self.project:
+            self.project = os.environ.get("VERTEX_PROJECT", "")
+        if not self.endpoint_id:
+            self.endpoint_id = os.environ.get("VERTEX_ENDPOINT_ID", "")
+        env_region = os.environ.get("VERTEX_REGION", "")
+        if env_region:
+            self.region = env_region

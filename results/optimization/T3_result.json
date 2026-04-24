@@ -1,0 +1,25 @@
+{
+  "test": {
+    "id": "T3",
+    "num_parallel": 4,
+    "num_thread": 8,
+    "users": 4,
+    "num_ctx": 4096,
+    "desc": "Config actual (referencia)"
+  },
+  "metrics": {
+    "success": true,
+    "throughput": 16.9,
+    "latency_mean": 113.66,
+    "ttft_mean": 9.898,
+    "latency_p50": 123.19,
+    "latency_p90": 128.41,
+    "ttft_p50": 10.72,
+    "ttft_p90": 10.722,
+    "total_tokens": 2171,
+    "total_duration": 128.41,
+    "tps_per_user": 4.8,
+    "successful": 4,
+    "failed": 0
+  }
+}

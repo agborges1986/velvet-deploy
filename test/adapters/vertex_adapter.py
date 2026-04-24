@@ -196,6 +196,12 @@ class VertexAdapter(BackendAdapter):
         Maneja diferentes formatos de respuesta del endpoint de Vertex AI,
         incluyendo respuestas de Hugging Face DLC.
 
+        Nota sobre estimación de tokens: cuando el endpoint no reporta
+        tokens generados, se estima usando ~5.5 caracteres por token,
+        que es la ratio promedio para texto en italiano/español con
+        tokenizers basados en LLaMA/SentencePiece. La ratio de 4 chars/token
+        es más apropiada para inglés.
+
         Args:
             response: Objeto de respuesta del SDK de Vertex AI.
             elapsed: Tiempo transcurrido en segundos.
@@ -206,6 +212,8 @@ class VertexAdapter(BackendAdapter):
         text = ""
         tokens_generated = 0
         tokens_per_second = 0.0
+        # Indica si los tokens fueron reportados por el endpoint o estimados
+        tokens_estimated = False
 
         # La respuesta de Vertex AI contiene predictions como lista
         predictions = response.predictions if hasattr(response, "predictions") else []
@@ -238,8 +246,12 @@ class VertexAdapter(BackendAdapter):
 
         # Estimar tokens generados si no se reportaron en la respuesta
         if tokens_generated == 0 and text:
-            # Estimación aproximada: ~4 caracteres por token
-            tokens_generated = max(1, len(text) // 4)
+            # Estimación para idiomas romance (italiano/español) con tokenizers
+            # LLaMA/SentencePiece: ~5.5 caracteres por token en promedio.
+            # Esto es más conservador que la ratio de 4 chars/token usada
+            # comúnmente para inglés, y produce métricas de TPS más realistas.
+            tokens_generated = max(1, int(len(text) / 5.5))
+            tokens_estimated = True
 
         # Calcular tokens por segundo
         if elapsed > 0 and tokens_generated > 0:

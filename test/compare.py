@@ -51,6 +51,10 @@ def cargar_resultados(results_dir: str) -> list:
     """
     Lee todos los archivos JSON de resultados del directorio.
 
+    Soporta tanto TestResult (del runner) como BenchmarkResult (de los
+    benchmarks de stress). Los BenchmarkResult se convierten a TestResult
+    para poder incluirlos en el reporte comparativo.
+
     Archivos corruptos se registran en el log y se excluyen.
     Retorna una lista de objetos TestResult válidos.
     """
@@ -72,6 +76,17 @@ def cargar_resultados(results_dir: str) -> list:
         try:
             with open(ruta, "r", encoding="utf-8") as f:
                 contenido = f.read()
+            data = json.loads(contenido)
+
+            # Detectar si es un BenchmarkResult (tiene 'hardware' y 'concurrent_users')
+            if "hardware" in data and "concurrent_users" in data:
+                resultado = _benchmark_to_testresult(data)
+                if resultado:
+                    resultados.append(resultado)
+                    logger.debug(f"Cargado (benchmark): {nombre_archivo}")
+                continue
+
+            # Intentar cargar como TestResult estándar
             resultado = TestResult.from_json(contenido)
             resultados.append(resultado)
             logger.debug(f"Cargado: {nombre_archivo}")
@@ -85,6 +100,51 @@ def cargar_resultados(results_dir: str) -> list:
             )
 
     return resultados
+
+
+def _benchmark_to_testresult(data: dict) -> TestResult | None:
+    """
+    Convierte un BenchmarkResult (dict) a TestResult para el comparador.
+
+    Mapea los campos del benchmark al formato estándar de TestResult.
+    Retorna None si los datos no son válidos.
+    """
+    try:
+        # Determinar backend desde el nombre del hardware
+        hardware = data.get("hardware", "").lower()
+        if "vertex" in hardware:
+            backend = "vertex"
+        else:
+            backend = "ollama"
+
+        return TestResult(
+            backend=backend,
+            model=data.get("model", "unknown"),
+            test_name="benchmark_stress",
+            timestamp=data.get("timestamp", ""),
+            iterations=data.get("concurrent_users", 0),
+            success_rate=(
+                data.get("successful_requests", 0) / data.get("total_requests", 1)
+                if data.get("total_requests", 0) > 0 else 0.0
+            ),
+            latency_mean_s=data.get("latency_mean_s", 0.0),
+            latency_p50_s=data.get("latency_p50_s", 0.0),
+            latency_p90_s=data.get("latency_p90_s", 0.0),
+            tokens_per_second=data.get("throughput_tokens_s", 0.0),
+            max_ram_mb=0.0,
+            details={
+                "source": "benchmark_stress",
+                "hardware": data.get("hardware", ""),
+                "concurrent_users": data.get("concurrent_users", 0),
+                "ttft_mean_s": data.get("ttft_mean_s", 0.0),
+                "tokens_per_second_per_user": data.get("tokens_per_second_per_user", 0.0),
+                "total_tokens_generated": data.get("total_tokens_generated", 0),
+                "total_duration_s": data.get("total_duration_s", 0.0),
+            },
+        )
+    except Exception as e:
+        logger.warning(f"Error convirtiendo BenchmarkResult a TestResult: {e}")
+        return None
 
 
 def agrupar_resultados(resultados: list) -> dict:
@@ -236,6 +296,14 @@ def generar_reporte_markdown(datos: dict) -> str:
     lineas.append(f"**Modelos:** {', '.join(datos['models']) if datos['models'] else 'Ninguno'}")
     lineas.append(f"**Backends:** {', '.join(datos['backends']) if datos['backends'] else 'Ninguno'}")
     lineas.append("")
+
+    # --- Nota sobre comparabilidad de métricas ---
+    if BACKEND_REFERENCIA in datos["backends"] and BACKEND_COMPARADO in datos["backends"]:
+        lineas.append("> **Nota sobre comparabilidad:** Las métricas de Tokens/s de Ollama")
+        lineas.append("> usan `eval_duration` (tiempo real de generación), mientras que Vertex AI")
+        lineas.append("> estima tokens con heurística (~5.5 chars/token). Los valores de Tokens/s")
+        lineas.append("> entre backends no son directamente comparables.")
+        lineas.append("")
 
     # --- Sección de datos faltantes ---
     if datos["missing_data"]:
