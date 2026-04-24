@@ -23,6 +23,11 @@ env/
 # Kiro
 .kiro/
 
+# Keys / Secrets
+*.pem
+*-key.json
+*-credentials.json
+
 # OS
 .DS_Store
 Thumbs.db
