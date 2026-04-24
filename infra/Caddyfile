@@ -1,0 +1,28 @@
+# =============================================================================
+# Caddyfile — Reverse Proxy con autenticación para Ollama
+# =============================================================================
+# Escucha en el puerto 8080 y reenvía solicitudes autenticadas a ollama:11434.
+# Las credenciales se inyectan como variables de entorno desde Docker Compose:
+#   - {$OLLAMA_AUTH_USER}: nombre de usuario para Basic Auth
+#   - {$OLLAMA_AUTH_HASH}: hash bcrypt de la contraseña (generado con
+#     `caddy hash-password --plaintext <password>`)
+#
+# Solicitudes sin credenciales válidas reciben HTTP 401.
+# Cada solicitud se registra en JSON con IP de origen, timestamp y resultado
+# de autenticación.
+# =============================================================================
+
+:8080 {
+	basicauth /* {
+		{$OLLAMA_AUTH_USER} {$OLLAMA_AUTH_HASH}
+	}
+
+	reverse_proxy ollama:11434
+
+	log {
+		output file /var/log/caddy/access.log
+		format json {
+			time_format iso8601
+		}
+	}
+}

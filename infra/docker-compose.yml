@@ -1,0 +1,113 @@
+# =============================================================================
+# Docker Compose — Despliegue On-Premise de Modelos Velvet
+# =============================================================================
+# Entorno: VM_OnPremise (EC2 32 vCPU, sin GPU)
+#   - Instancia EC2 compute-optimized (ej: c6i.8xlarge — 32 vCPU, 64 GB RAM)
+#   - Inferencia CPU-only con cuantización Q4_K_M
+#   - Puerto 11434 de Ollama aislado en red interna de Docker
+#   - Acceso externo únicamente a través de Caddy (puerto 8080) con Basic Auth
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Servicio Ollama — Servidor de inferencia LLM (CPU-only)
+  # ---------------------------------------------------------------------------
+  # Configurado para VM_OnPremise: 32 vCPU, sin GPU.
+  # El puerto 11434 NO se expone al exterior; solo es accesible dentro de la
+  # red interna de Docker por los servicios caddy e init.
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: velvet-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./modelfiles:/modelfiles:ro
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_KEEP_ALIVE=10m
+      - OLLAMA_NUM_PARALLEL=8
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # Límites de recursos para VM_OnPremise (EC2 32 vCPU, 64 GB RAM)
+    # mem_limit: 1.5× modelo más grande (Velvet-14B Q4_K_M ≈ 8.5 GB) → 13 GB
+    # mem_reservation: mínimo garantizado para operación estable
+    cpus: 32
+    mem_limit: 13g
+    mem_reservation: 8g
+
+  # ---------------------------------------------------------------------------
+  # Servicio Caddy — Reverse proxy con autenticación Basic Auth
+  # ---------------------------------------------------------------------------
+  # Único punto de acceso externo (puerto 8080).
+  # Requiere credenciales definidas en .env (OLLAMA_AUTH_USER, OLLAMA_AUTH_HASH).
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: velvet-caddy
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_logs:/var/log/caddy
+    environment:
+      - OLLAMA_AUTH_USER=${OLLAMA_AUTH_USER}
+      - OLLAMA_AUTH_HASH=${OLLAMA_AUTH_HASH}
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Servicio Init — Creación de modelos custom desde Modelfiles
+  # ---------------------------------------------------------------------------
+  # Servicio one-shot: espera a que Ollama esté disponible y ejecuta
+  # `ollama create` para cada Modelfile en /modelfiles/.
+  # Se ejecuta una sola vez y termina (restart: "no").
+  # ---------------------------------------------------------------------------
+  init:
+    image: ollama/ollama:latest
+    container_name: velvet-init
+    restart: "no"
+    volumes:
+      - ./modelfiles:/modelfiles:ro
+    environment:
+      - OLLAMA_HOST=ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Esperando a que Ollama esté disponible..."
+        until curl -sf http://ollama:11434/api/tags > /dev/null 2>&1; do
+          echo "Ollama no disponible aún, reintentando en 5s..."
+          sleep 5
+        done
+        echo "Ollama disponible. Creando modelos desde Modelfiles..."
+        for modelfile in /modelfiles/*.Modelfile; do
+          if [ -f "$$modelfile" ]; then
+            model_name=$$(basename "$$modelfile" .Modelfile)
+            echo "Creando modelo: $$model_name desde $$modelfile"
+            ollama create "$$model_name" -f "$$modelfile"
+            if [ $$? -eq 0 ]; then
+              echo "Modelo $$model_name creado exitosamente."
+            else
+              echo "ERROR: Fallo al crear modelo $$model_name."
+            fi
+          fi
+        done
+        echo "Inicialización completada."
+
+volumes:
+  ollama_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_logs:
+    driver: local
