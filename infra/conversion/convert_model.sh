@@ -261,6 +261,11 @@ fi
 
 log_info "Cuantización completada: $RUTA_GGUF_FINAL"
 
+# Generar checksum SHA256 para verificación de integridad
+log_info "Generando checksum SHA256..."
+sha256sum "$RUTA_GGUF_FINAL" > "${RUTA_GGUF_FINAL}.sha256"
+log_info "Checksum generado: ${RUTA_GGUF_FINAL}.sha256"
+
 # Eliminar el archivo F16 intermedio para ahorrar espacio
 log_info "Eliminando archivo F16 intermedio: $RUTA_GGUF_F16"
 rm -f "$RUTA_GGUF_F16"

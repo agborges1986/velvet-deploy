@@ -1,0 +1,27 @@
+{
+  "backend": "vertex",
+  "model": "velvet-14b",
+  "test_name": "numerico",
+  "timestamp": "2026-04-24T21:09:30.629655+00:00",
+  "iterations": 10,
+  "success_rate": 0.75,
+  "latency_mean_s": 1.4187914848327636,
+  "latency_p50_s": 1.4018933773040771,
+  "latency_p90_s": 1.581024169921875,
+  "tokens_per_second": 0.0,
+  "max_ram_mb": 0.0,
+  "details": {
+    "sub_tests": [
+      {
+        "name": "calculo_financiero",
+        "success_rate": 0.7,
+        "latency_mean_s": 1.477947735786438
+      },
+      {
+        "name": "estructura_json",
+        "success_rate": 0.8,
+        "latency_mean_s": 1.3596352338790894
+      }
+    ]
+  }
+}

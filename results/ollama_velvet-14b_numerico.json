@@ -1,0 +1,19 @@
+{
+  "backend": "ollama",
+  "model": "velvet-14b-cpu-v1",
+  "test_name": "numerico",
+  "timestamp": "2026-04-24T17:54:46.063443+00:00",
+  "iterations": 5,
+  "success_rate": 0.0,
+  "latency_mean_s": 3.083274507522583,
+  "latency_p50_s": 3.216791868209839,
+  "latency_p90_s": 7.2247960567474365,
+  "tokens_per_second": 0,
+  "max_ram_mb": 0,
+  "details": {
+    "math_success": "0/5",
+    "json_success": "0/5",
+    "math_latency_mean": 2.92,
+    "json_latency_mean": 3.24
+  }
+}

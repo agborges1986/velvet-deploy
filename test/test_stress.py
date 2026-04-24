@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 
 from test.adapters import BackendAdapter, create_adapter
 from test.models import GenerateResponse, TestResult
+from test.stats_utils import percentile, warmup
 
 
 # --- Constantes del test ---
@@ -34,8 +35,7 @@ def run_test(adapter: BackendAdapter, model: str) -> TestResult:
     Mantiene la lógica de evaluación original intacta y la salida por consola.
     """
     # Variables compartidas entre hilos
-    resultados_latencia = []
-    exitos = 0
+    resultados = []  # lista de dicts con latencia, tps, éxito
     lock = threading.Lock()
     test_en_ejecucion = True
     # Métricas de hardware recopiladas por el monitor
@@ -44,7 +44,6 @@ def run_test(adapter: BackendAdapter, model: str) -> TestResult:
 
     def peticion_usuario(id_usuario):
         """Envía una solicitud al modelo usando el adaptador de backend."""
-        nonlocal exitos
         try:
             response: GenerateResponse = adapter.generate(
                 model=model,
@@ -53,14 +52,24 @@ def run_test(adapter: BackendAdapter, model: str) -> TestResult:
                 options={"num_ctx": 2048, "temperature": 0.0},
             )
 
+            exito = "16k" in response.text.lower()
             with lock:
-                resultados_latencia.append(response.latency)
-                if "16k" in response.text.lower():
-                    exitos += 1
+                resultados.append({
+                    "latency": response.latency,
+                    "tps": response.tokens_per_second,
+                    "success": exito,
+                })
+                if exito:
                     print(f"  [Usuario {id_usuario}] ✅ OK en {response.latency:.2f}s")
                 else:
                     print(f"  [Usuario {id_usuario}] ❌ FALLO")
         except Exception as e:
+            with lock:
+                resultados.append({
+                    "latency": 0.0,
+                    "tps": 0.0,
+                    "success": False,
+                })
             print(f"  [Usuario {id_usuario}] 🚨 ERROR: {e}")
 
     def monitor_hardware():
@@ -84,6 +93,10 @@ def run_test(adapter: BackendAdapter, model: str) -> TestResult:
             time.sleep(2)
 
     print(f"--- INICIANDO TEST DE ESTRÉS: {NUM_USUARIOS_CONCURRENTES} USUARIOS SIMULTÁNEOS ---")
+
+    # Warm-up: ejecutar una solicitud descartable para evitar cold-start
+    print("Ejecutando warm-up del modelo...")
+    warmup(adapter, model)
 
     # Iniciar monitor de hardware en hilo separado
     monitor_thread = threading.Thread(target=monitor_hardware)
@@ -110,6 +123,11 @@ def run_test(adapter: BackendAdapter, model: str) -> TestResult:
     test_en_ejecucion = False
     monitor_thread.join()
 
+    # --- Extraer datos de resultados (post-join, thread-safe) ---
+    resultados_latencia = [r["latency"] for r in resultados if r["latency"] > 0]
+    resultados_tps = [r["tps"] for r in resultados if r["tps"] > 0]
+    exitos = sum(1 for r in resultados if r["success"])
+
     # --- Salida por consola original para compatibilidad ---
     print("\n" + "="*50)
     print("REPORTE DE CONCURRENCIA Y ESTRÉS")
@@ -124,13 +142,10 @@ def run_test(adapter: BackendAdapter, model: str) -> TestResult:
     print("="*50)
 
     # --- Construir TestResult estructurado ---
-    latencias_sorted = sorted(resultados_latencia) if resultados_latencia else [0.0]
-
-    # Calcular percentiles
-    p50_idx = int(len(latencias_sorted) * 0.5)
-    p90_idx = int(len(latencias_sorted) * 0.9)
-    latency_p50 = latencias_sorted[min(p50_idx, len(latencias_sorted) - 1)]
-    latency_p90 = latencias_sorted[min(p90_idx, len(latencias_sorted) - 1)]
+    # Percentiles con interpolación correcta
+    latency_p50 = percentile(resultados_latencia, 0.5) if resultados_latencia else 0.0
+    latency_p90 = percentile(resultados_latencia, 0.9) if resultados_latencia else 0.0
+    avg_tps = statistics.mean(resultados_tps) if resultados_tps else 0.0
 
     # Determinar nombre del backend desde el adaptador
     backend_name = type(adapter).__name__.replace("Adapter", "").lower()
@@ -145,7 +160,7 @@ def run_test(adapter: BackendAdapter, model: str) -> TestResult:
         latency_mean_s=statistics.mean(resultados_latencia) if resultados_latencia else 0.0,
         latency_p50_s=latency_p50,
         latency_p90_s=latency_p90,
-        tokens_per_second=0.0,
+        tokens_per_second=avg_tps,
         max_ram_mb=max_ram_mb,
         details={
             "concurrent_users": NUM_USUARIOS_CONCURRENTES,

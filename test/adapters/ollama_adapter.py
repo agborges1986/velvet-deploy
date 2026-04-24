@@ -133,6 +133,11 @@ class OllamaAdapter(BackendAdapter):
         """
         Extrae los campos relevantes de la respuesta de Ollama.
 
+        Usa eval_duration de Ollama (tiempo real de generación de tokens)
+        para calcular tokens_per_second con precisión, excluyendo latencia
+        de red y procesamiento del prompt. Si eval_duration no está
+        disponible, usa elapsed como fallback.
+
         Args:
             data: Diccionario con la respuesta JSON de Ollama.
             elapsed: Tiempo transcurrido en segundos.
@@ -145,8 +150,14 @@ class OllamaAdapter(BackendAdapter):
         # Ollama reporta eval_count como número de tokens generados
         tokens_generated = data.get("eval_count", 0)
 
-        # Calcular tokens por segundo
-        if elapsed > 0 and tokens_generated > 0:
+        # Ollama reporta eval_duration en nanosegundos: tiempo real de
+        # generación de tokens (excluye prompt processing y latencia de red)
+        eval_duration_ns = data.get("eval_duration", 0)
+
+        # Calcular tokens por segundo usando eval_duration si está disponible
+        if eval_duration_ns > 0 and tokens_generated > 0:
+            tokens_per_second = tokens_generated / (eval_duration_ns / 1e9)
+        elif elapsed > 0 and tokens_generated > 0:
             tokens_per_second = tokens_generated / elapsed
         else:
             tokens_per_second = 0.0

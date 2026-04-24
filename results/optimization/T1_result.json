@@ -1,0 +1,25 @@
+{
+  "test": {
+    "id": "T1",
+    "num_parallel": 1,
+    "num_thread": 32,
+    "users": 1,
+    "num_ctx": 4096,
+    "desc": "Baseline: 1 usuario, todos los cores"
+  },
+  "metrics": {
+    "success": true,
+    "throughput": 10.0,
+    "latency_mean": 78.53,
+    "ttft_mean": 6.747,
+    "latency_p50": 78.53,
+    "latency_p90": 78.53,
+    "ttft_p50": 6.747,
+    "ttft_p90": 6.747,
+    "total_tokens": 786,
+    "total_duration": 78.53,
+    "tps_per_user": 10.0,
+    "successful": 1,
+    "failed": 0
+  }
+}

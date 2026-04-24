@@ -169,6 +169,24 @@ def main(args=None) -> int:
         default=None,
         help="Subconjunto de tests a ejecutar, separados por coma (ej: memoria,numerico,seguridad,stress). Por defecto ejecuta todos.",
     )
+    parser.add_argument(
+        "--vertex-project",
+        type=str,
+        default=os.environ.get("VERTEX_PROJECT", ""),
+        help="ID del proyecto GCP (o env VERTEX_PROJECT). Requerido para --backend vertex.",
+    )
+    parser.add_argument(
+        "--vertex-endpoint-id",
+        type=str,
+        default=os.environ.get("VERTEX_ENDPOINT_ID", ""),
+        help="ID numérico del endpoint de Vertex AI (o env VERTEX_ENDPOINT_ID). Requerido para --backend vertex.",
+    )
+    parser.add_argument(
+        "--vertex-region",
+        type=str,
+        default=os.environ.get("VERTEX_REGION", "us-central1"),
+        help="Región de GCP (o env VERTEX_REGION). Default: us-central1.",
+    )
 
     parsed_args = parser.parse_args(args)
 
@@ -192,7 +210,34 @@ def main(args=None) -> int:
     # --- Crear adaptador de backend ---
     print(f"Configurando backend '{parsed_args.backend}'...")
     try:
-        adapter: BackendAdapter = create_adapter(parsed_args.backend)
+        config = None
+        if parsed_args.backend == "vertex":
+            from test.models import VertexConfig
+
+            # Validar que los parámetros requeridos estén presentes
+            if not parsed_args.vertex_project:
+                print(
+                    "Error: --vertex-project (o env VERTEX_PROJECT) es requerido "
+                    "para el backend vertex."
+                )
+                return 1
+            if not parsed_args.vertex_endpoint_id:
+                print(
+                    "Error: --vertex-endpoint-id (o env VERTEX_ENDPOINT_ID) es requerido "
+                    "para el backend vertex."
+                )
+                return 1
+
+            config = VertexConfig(
+                project=parsed_args.vertex_project,
+                region=parsed_args.vertex_region,
+                endpoint_id=parsed_args.vertex_endpoint_id,
+            )
+            print(f"  Proyecto GCP:  {config.project}")
+            print(f"  Región:        {config.region}")
+            print(f"  Endpoint ID:   {config.endpoint_id}")
+
+        adapter: BackendAdapter = create_adapter(parsed_args.backend, config)
     except ValueError as e:
         print(f"Error al crear adaptador: {e}")
         return 1

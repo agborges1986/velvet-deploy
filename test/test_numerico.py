@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 
 from test.adapters import BackendAdapter, create_adapter
 from test.models import GenerateResponse, TestResult
+from test.stats_utils import percentile, warmup
 
 
 # --- Constantes del test ---
@@ -24,14 +25,14 @@ ITERACIONES = 10
 DEFAULT_MODEL = "velvet-legal"
 
 
-def call_velvet(adapter: BackendAdapter, model: str, prompt: str, system_msg: str) -> tuple:
+def call_velvet(adapter: BackendAdapter, model: str, prompt: str, system_msg: str) -> GenerateResponse:
     """
     Envía una solicitud de generación usando el adaptador de backend.
 
-    Retorna una tupla (texto_respuesta, latencia_segundos).
+    Retorna el GenerateResponse completo (texto, latencia, tokens, TPS).
     """
     try:
-        response: GenerateResponse = adapter.generate(
+        return adapter.generate(
             model=model,
             prompt=prompt,
             system=system_msg,
@@ -41,10 +42,9 @@ def call_velvet(adapter: BackendAdapter, model: str, prompt: str, system_msg: st
                 "stop": ["<|system|>", "<|end|>", "</query>", "<|user|>"]
             },
         )
-        return response.text, response.latency
     except Exception as e:
         print(f"Error API: {e}")
-        return "", 0.0
+        return GenerateResponse(text="", latency=0.0, tokens_generated=0, tokens_per_second=0.0)
 
 
 def run_test(adapter: BackendAdapter, model: str) -> TestResult:
@@ -75,7 +75,12 @@ IMPORTANTE: Comienza tu respuesta directamente con la llave {{ y termina con la 
 """
 
     tiempos_t3, tiempos_t4 = [], []
+    tps_t3, tps_t4 = [], []
     exitos_t3, exitos_t4 = 0, 0
+
+    # Warm-up: ejecutar una solicitud descartable para evitar cold-start
+    print("Ejecutando warm-up del modelo...")
+    warmup(adapter, model)
 
     print(f"--- INICIANDO AUDITORÍA DE PRECISIÓN LÓGICA (N={ITERACIONES}) ---")
 
@@ -83,12 +88,14 @@ IMPORTANTE: Comienza tu respuesta directamente con la llave {{ y termina con la 
         print(f"\n--- Iteración {i}/{ITERACIONES} ---")
 
         # Test 3: Cálculo financiero (interés compuesto)
-        resp_t3, lat_t3 = call_velvet(adapter, model, prompt_math, "Eres un analista financiero preciso. Muestra tu razonamiento paso a paso.")
-        tiempos_t3.append(lat_t3)
+        resp_t3 = call_velvet(adapter, model, prompt_math, "Eres un analista financiero preciso. Muestra tu razonamiento paso a paso.")
+        tiempos_t3.append(resp_t3.latency)
+        if resp_t3.tokens_per_second > 0:
+            tps_t3.append(resp_t3.tokens_per_second)
 
-        print(f"  [LOG T3] Respuesta cruda:\n{resp_t3.strip()}\n")
+        print(f"  [LOG T3] Respuesta cruda:\n{resp_t3.text.strip()}\n")
 
-        r3_limpio = resp_t3.replace(",", "").replace(".", "")
+        r3_limpio = resp_t3.text.replace(",", "").replace(".", "")
         if "11025" in r3_limpio:
             exitos_t3 += 1
             print("  [LOG T3] ¡ÉXITO! Cálculo matemático correcto.")
@@ -96,10 +103,12 @@ IMPORTANTE: Comienza tu respuesta directamente con la llave {{ y termina con la 
             print("  [LOG T3] FALLO. Error aritmético o de razonamiento.")
 
         # Test 4: Extracción JSON estructurado
-        resp_t4, lat_t4 = call_velvet(adapter, model, prompt_json, "Eres un sistema de backend. Tu salida es estrictamente un objeto JSON.")
-        tiempos_t4.append(lat_t4)
+        resp_t4 = call_velvet(adapter, model, prompt_json, "Eres un sistema de backend. Tu salida es estrictamente un objeto JSON.")
+        tiempos_t4.append(resp_t4.latency)
+        if resp_t4.tokens_per_second > 0:
+            tps_t4.append(resp_t4.tokens_per_second)
 
-        respuesta_json = resp_t4.strip()
+        respuesta_json = resp_t4.text.strip()
         if respuesta_json.startswith("```json"):
             respuesta_json = respuesta_json[7:]
         if respuesta_json.startswith("```"):
@@ -119,7 +128,7 @@ IMPORTANTE: Comienza tu respuesta directamente con la llave {{ y termina con la 
         except json.JSONDecodeError:
             print("  [LOG T4] FALLO CRÍTICO. El modelo inyectó basura textual y rompió el JSON.")
 
-        print(f"  > Latencias -> T3 (Math): {lat_t3:.2f}s | T4 (JSON): {lat_t4:.2f}s")
+        print(f"  > Latencias -> T3 (Math): {resp_t3.latency:.2f}s | T4 (JSON): {resp_t4.latency:.2f}s")
 
     # --- Salida por consola original para compatibilidad ---
     print("\n" + "="*50)
@@ -130,16 +139,23 @@ IMPORTANTE: Comienza tu respuesta directamente con la llave {{ y termina con la 
     print("="*50)
 
     # --- Construir TestResult estructurado ---
-    todas_latencias = tiempos_t3 + tiempos_t4
-    todas_latencias_sorted = sorted(todas_latencias)
-    total_exitos = exitos_t3 + exitos_t4
-    total_iteraciones = ITERACIONES * 2
+    # Calcular TPS promedio de todas las respuestas válidas
+    all_tps = tps_t3 + tps_t4
+    avg_tps = statistics.mean(all_tps) if all_tps else 0.0
 
-    # Calcular percentiles
-    p50_idx = int(len(todas_latencias_sorted) * 0.5)
-    p90_idx = int(len(todas_latencias_sorted) * 0.9)
-    latency_p50 = todas_latencias_sorted[min(p50_idx, len(todas_latencias_sorted) - 1)]
-    latency_p90 = todas_latencias_sorted[min(p90_idx, len(todas_latencias_sorted) - 1)]
+    total_exitos = exitos_t3 + exitos_t4
+    total_llamadas = ITERACIONES * 2
+
+    # Percentiles calculados POR SUB-TEST (no mezclados)
+    latency_p50_t3 = percentile(tiempos_t3, 0.5) if tiempos_t3 else 0.0
+    latency_p90_t3 = percentile(tiempos_t3, 0.9) if tiempos_t3 else 0.0
+    latency_p50_t4 = percentile(tiempos_t4, 0.5) if tiempos_t4 else 0.0
+    latency_p90_t4 = percentile(tiempos_t4, 0.9) if tiempos_t4 else 0.0
+
+    # Latencia media ponderada: promedio de las medias de cada sub-test
+    mean_t3 = statistics.mean(tiempos_t3) if tiempos_t3 else 0.0
+    mean_t4 = statistics.mean(tiempos_t4) if tiempos_t4 else 0.0
+    latency_mean = (mean_t3 + mean_t4) / 2
 
     # Determinar nombre del backend desde el adaptador
     backend_name = type(adapter).__name__.replace("Adapter", "").lower()
@@ -150,23 +166,30 @@ IMPORTANTE: Comienza tu respuesta directamente con la llave {{ y termina con la 
         test_name="numerico",
         timestamp=datetime.now(timezone.utc).isoformat(),
         iterations=ITERACIONES,
-        success_rate=total_exitos / total_iteraciones if total_iteraciones > 0 else 0.0,
-        latency_mean_s=statistics.mean(todas_latencias) if todas_latencias else 0.0,
-        latency_p50_s=latency_p50,
-        latency_p90_s=latency_p90,
-        tokens_per_second=0.0,
+        success_rate=total_exitos / total_llamadas if total_llamadas > 0 else 0.0,
+        latency_mean_s=latency_mean,
+        latency_p50_s=max(latency_p50_t3, latency_p50_t4),
+        latency_p90_s=max(latency_p90_t3, latency_p90_t4),
+        tokens_per_second=avg_tps,
         max_ram_mb=0.0,
         details={
+            "total_requests": total_llamadas,
             "sub_tests": [
                 {
                     "name": "calculo_financiero",
                     "success_rate": exitos_t3 / ITERACIONES if ITERACIONES > 0 else 0.0,
-                    "latency_mean_s": statistics.mean(tiempos_t3) if tiempos_t3 else 0.0,
+                    "latency_mean_s": mean_t3,
+                    "latency_p50_s": latency_p50_t3,
+                    "latency_p90_s": latency_p90_t3,
+                    "tokens_per_second": statistics.mean(tps_t3) if tps_t3 else 0.0,
                 },
                 {
                     "name": "estructura_json",
                     "success_rate": exitos_t4 / ITERACIONES if ITERACIONES > 0 else 0.0,
-                    "latency_mean_s": statistics.mean(tiempos_t4) if tiempos_t4 else 0.0,
+                    "latency_mean_s": mean_t4,
+                    "latency_p50_s": latency_p50_t4,
+                    "latency_p90_s": latency_p90_t4,
+                    "tokens_per_second": statistics.mean(tps_t4) if tps_t4 else 0.0,
                 },
             ]
         },

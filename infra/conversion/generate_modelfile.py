@@ -30,7 +30,7 @@ from pathlib import Path
 # Velvet-14B permite contexto más amplio dado su mayor capacidad.
 CONFIGURACION_MODELOS = {
     "velvet-2b": {
-        "num_ctx": 2048,       # Ventana de contexto (tokens)
+        "num_ctx": 4096,       # Ventana de contexto (aumentado de 2048 — RAM suficiente)
         "num_predict": 512,    # Máximo de tokens a generar
         "temperature": 0.3,    # Temperatura baja para respuestas más deterministas
         "top_p": 0.9,          # Nucleus sampling

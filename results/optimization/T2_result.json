@@ -1,0 +1,25 @@
+{
+  "test": {
+    "id": "T2",
+    "num_parallel": 2,
+    "num_thread": 16,
+    "users": 2,
+    "num_ctx": 4096,
+    "desc": "2 paralelas x 16 threads"
+  },
+  "metrics": {
+    "success": true,
+    "throughput": 12.7,
+    "latency_mean": 70.88,
+    "ttft_mean": 7.579,
+    "latency_p50": 85.8,
+    "latency_p90": 85.8,
+    "ttft_p50": 8.235,
+    "ttft_p90": 8.235,
+    "total_tokens": 1087,
+    "total_duration": 85.8,
+    "tps_per_user": 7.5,
+    "successful": 2,
+    "failed": 0
+  }
+}
