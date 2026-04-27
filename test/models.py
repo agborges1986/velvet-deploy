@@ -69,11 +69,27 @@ class ModelConfig:
 
 @dataclass
 class OllamaConfig:
-    """Configuración de conexión al backend Ollama (a través del reverse proxy)."""
+    """Configuración de conexión al backend Ollama (a través del reverse proxy).
+
+    Lee valores por defecto de variables de entorno si están definidas:
+      - OLLAMA_BASE_URL: URL del reverse proxy (default: http://localhost:8080)
+      - OLLAMA_AUTH_USER: Usuario para autenticación básica
+      - OLLAMA_AUTH_PASSWORD: Contraseña para autenticación básica
+    """
     base_url: str = "http://localhost:8080"  # URL del reverse proxy Caddy
     auth_user: str = ""                      # Usuario para autenticación básica
     auth_password: str = ""                  # Contraseña para autenticación básica
     timeout: int = 120                       # Timeout en segundos
+
+    def __post_init__(self) -> None:
+        """Carga valores desde variables de entorno si los campos están vacíos."""
+        if not self.auth_user:
+            self.auth_user = os.environ.get("OLLAMA_AUTH_USER", "")
+        if not self.auth_password:
+            self.auth_password = os.environ.get("OLLAMA_AUTH_PASSWORD", "")
+        env_url = os.environ.get("OLLAMA_BASE_URL", "")
+        if env_url:
+            self.base_url = env_url
 
 
 @dataclass
