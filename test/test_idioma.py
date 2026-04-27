@@ -216,6 +216,14 @@ def run_test(url: str, model: str, auth: Optional[Tuple[str, str]] = None) -> di
     print(f" Prompts: {len(PROMPTS)} | Idiomas: Italiano, Español")
     print(f"{'='*90}\n")
 
+    # Warm-up: cargar modelo en memoria antes de medir
+    print("  [WARM-UP] Cargando modelo en memoria...")
+    warmup_resp = enviar_prompt(url, model, "Hola", "Responde brevemente.", auth)
+    if warmup_resp["success"]:
+        print(f"  [WARM-UP] Modelo cargado. Latencia warm-up: {warmup_resp['latency_s']}s\n")
+    else:
+        print(f"  [WARM-UP] Advertencia: warm-up falló. La primera solicitud puede incluir cold-start.\n")
+
     for i, prompt_pair in enumerate(PROMPTS, 1):
         pid = prompt_pair["id"]
         print(f"--- Prompt {i}/{len(PROMPTS)}: {pid.upper()} ---\n")

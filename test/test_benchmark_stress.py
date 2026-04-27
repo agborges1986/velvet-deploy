@@ -256,11 +256,23 @@ def run_benchmark(
                 f"TPS: {result.tokens_per_second:.1f}"
             )
 
-    # --- Ejecutar solicitudes concurrentes ---
+    # --- Warm-up: cargar modelo en memoria antes de medir ---
     print(f"\n{'='*80}")
     print(f" BENCHMARK: {model} | {num_users} usuarios concurrentes | {hardware}")
     print(f"{'='*80}\n")
 
+    print("  [WARM-UP] Cargando modelo en memoria...")
+    warmup_result = send_streaming_request(
+        url=url, model=model, prompt="Hola", system="Responde brevemente.",
+        auth=auth, num_ctx=512,
+    )
+    if warmup_result.success:
+        print(f"  [WARM-UP] Modelo cargado. Latencia warm-up: {warmup_result.total_latency_s:.2f}s\n")
+    else:
+        print(f"  [WARM-UP] Advertencia: warm-up falló ({warmup_result.error}). "
+              f"La primera solicitud puede incluir cold-start.\n")
+
+    # --- Ejecutar solicitudes concurrentes ---
     threads = [threading.Thread(target=worker, args=(i + 1,)) for i in range(num_users)]
 
     start_time = time.time()

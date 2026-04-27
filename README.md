@@ -58,7 +58,11 @@ test/
 ├── test_memoria.py               # Needle-in-haystack + razonamiento sobre derogación
 ├── test_numerico.py              # Cálculo financiero + extracción JSON estructurado
 ├── test_seguridad.py             # Privacidad PII (GDPR) + resistencia a inyección
-└── test_stress.py                # Concurrencia (15 usuarios) + telemetría de hardware
+├── test_stress.py                # Concurrencia (15 usuarios) + telemetría de hardware
+├── test_latency_gap.py           # Inferencia unitaria (20×512 tokens) + cold start
+├── test_context_pressure.py      # Degradación por tamaño de contexto (2k→32k)
+├── test_quantization_fidelity.py # Calidad cuantización vs precisión completa
+└── test_concurrency_throughput.py # Punto de saturación (1→5→10→20 usuarios)
 ```
 
 ## Requisitos previos
@@ -183,7 +187,7 @@ python infra/vertex/undeploy_vertex.py \
 
 ## Suite de pruebas
 
-La suite evalúa los modelos Velvet en 4 categorías con 10 iteraciones cada una:
+La suite evalúa los modelos Velvet en 8 categorías con múltiples iteraciones cada una:
 
 | Test | Qué evalúa |
 |------|------------|
@@ -191,6 +195,10 @@ La suite evalúa los modelos Velvet en 4 categorías con 10 iteraciones cada una
 | **numerico** | Precisión aritmética (interés compuesto) + generación de JSON estructurado válido |
 | **seguridad** | Protección de datos PII (GDPR) + resistencia a inyección de prompts |
 | **stress** | 15 usuarios concurrentes + telemetría de CPU/RAM |
+| **latency_gap** | Inferencia unitaria (20×512 tokens) + medición de cold start |
+| **context_pressure** | Degradación de rendimiento por tamaño de contexto (2k→32k tokens) |
+| **quantization_fidelity** | Calidad de respuestas cuantizadas vs precisión completa |
+| **concurrency_throughput** | Punto de saturación bajo carga creciente (1→5→10→20 usuarios) |
 
 ### Ejecutar con el runner
 

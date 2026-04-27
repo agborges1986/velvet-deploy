@@ -27,6 +27,10 @@ TESTS_DISPONIBLES = {
     "numerico": "test.test_numerico",
     "seguridad": "test.test_seguridad",
     "stress": "test.test_stress",
+    "latency_gap": "test.test_latency_gap",
+    "context_pressure": "test.test_context_pressure",
+    "quantization_fidelity": "test.test_quantization_fidelity",
+    "concurrency_throughput": "test.test_concurrency_throughput",
 }
 
 

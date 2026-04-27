@@ -101,18 +101,46 @@ BENCHMARK_SYSTEM = (
 # Función de solicitud a Vertex AI
 # ---------------------------------------------------------------------------
 
+def _get_dedicated_dns(project: str, region: str, endpoint_id: str) -> str:
+    """Obtiene el DNS del dedicated endpoint vía gRPC (no afectado por proxy SSL)."""
+    from google.cloud import aiplatform
+    aiplatform.init(project=project, location=region)
+    ep = aiplatform.Endpoint(endpoint_id)
+    return ep.gca_resource.dedicated_endpoint_dns
+
+
+def _get_credentials():
+    """Obtiene y refresca credenciales ADC."""
+    import google.auth
+    import google.auth.transport.requests
+    creds, _ = google.auth.default()
+    auth_req = google.auth.transport.requests.Request()
+    creds.refresh(auth_req)
+    return creds
+
+
 def send_vertex_request(
     endpoint,
     prompt: str,
     system: str,
     timeout: int = 300,
+    dedicated_dns: str = None,
+    project: str = None,
+    region: str = None,
+    endpoint_id: str = None,
 ) -> RequestResult:
     """
     Envía una solicitud de predicción al endpoint de Vertex AI.
 
+    Si dedicated_dns está configurado, usa REST directo con verify=False
+    para evitar problemas con proxies corporativos SSL.
+    Si no, usa el SDK nativo (endpoint.predict).
+
     Vertex AI predict no soporta streaming nativo como Ollama,
     así que TTFT se estima como la latencia total (peor caso).
     """
+    import warnings
+
     instance = {
         "inputs": prompt,
         "parameters": {
@@ -128,16 +156,52 @@ def send_vertex_request(
     start_time = time.time()
 
     try:
-        response = endpoint.predict(
-            instances=[instance],
-            timeout=timeout,
-        )
+        if dedicated_dns:
+            # REST directo para dedicated endpoints (bypass SSL proxy)
+            import requests as req_lib
 
-        total_latency = time.time() - start_time
+            creds = _get_credentials()
+            url = (
+                f"https://{dedicated_dns}/v1/"
+                f"projects/{project}/locations/{region}/"
+                f"endpoints/{endpoint_id}:predict"
+            )
+            headers = {
+                "Authorization": f"Bearer {creds.token}",
+                "Content-Type": "application/json",
+            }
+            payload = {"instances": [instance]}
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                resp = req_lib.post(
+                    url, json=payload, headers=headers,
+                    verify=False, timeout=timeout,
+                )
+
+            total_latency = time.time() - start_time
+
+            if resp.status_code != 200:
+                return RequestResult(
+                    user_id=0, success=False, ttft_s=0.0,
+                    total_latency_s=total_latency, tokens_generated=0,
+                    tokens_per_second=0.0,
+                    error=f"HTTP {resp.status_code}: {resp.text[:200]}",
+                )
+
+            resp_json = resp.json()
+            predictions = resp_json.get("predictions", [])
+        else:
+            # SDK nativo
+            response = endpoint.predict(
+                instances=[instance],
+                timeout=timeout,
+            )
+            total_latency = time.time() - start_time
+            predictions = response.predictions if hasattr(response, "predictions") else []
 
         # Extraer texto de la respuesta
         text = ""
-        predictions = response.predictions if hasattr(response, "predictions") else []
         if predictions:
             pred = predictions[0]
             if isinstance(pred, str):
@@ -155,7 +219,6 @@ def send_vertex_request(
         tps = tokens_generated / total_latency if total_latency > 0 and tokens_generated > 0 else 0
 
         # TTFT: Vertex predict no es streaming, estimamos como latencia total
-        # En la práctica el TTFT real sería menor, pero no podemos medirlo sin streaming
         ttft = total_latency
 
         return RequestResult(
@@ -190,6 +253,10 @@ def run_benchmark(
     model: str,
     num_users: int,
     hardware: str = "Vertex AI (GPU gestionada)",
+    dedicated_dns: str = None,
+    project: str = None,
+    region: str = None,
+    endpoint_id: str = None,
 ) -> BenchmarkResult:
     """
     Ejecuta el benchmark de stress con N usuarios concurrentes contra Vertex AI.
@@ -202,6 +269,10 @@ def run_benchmark(
             endpoint=endpoint,
             prompt=BENCHMARK_PROMPT,
             system=BENCHMARK_SYSTEM,
+            dedicated_dns=dedicated_dns,
+            project=project,
+            region=region,
+            endpoint_id=endpoint_id,
         )
         result.user_id = user_id
         with lock:
@@ -214,11 +285,25 @@ def run_benchmark(
                 f"TPS: {result.tokens_per_second:.1f}"
             )
 
+    # --- Warm-up: cargar modelo en memoria antes de medir ---
     print(f"\n{'='*80}")
     print(f" BENCHMARK VERTEX AI: {model} | {num_users} usuarios concurrentes")
     print(f" Hardware: {hardware}")
     print(f"{'='*80}\n")
 
+    print("  [WARM-UP] Cargando modelo en endpoint...")
+    warmup_result = send_vertex_request(
+        endpoint=endpoint, prompt="Hola", system="Responde brevemente.",
+        dedicated_dns=dedicated_dns, project=project, region=region,
+        endpoint_id=endpoint_id,
+    )
+    if warmup_result.success:
+        print(f"  [WARM-UP] Endpoint listo. Latencia warm-up: {warmup_result.total_latency_s:.2f}s\n")
+    else:
+        print(f"  [WARM-UP] Advertencia: warm-up falló ({warmup_result.error}). "
+              f"La primera solicitud puede incluir cold-start.\n")
+
+    # --- Ejecutar solicitudes concurrentes ---
     threads = [threading.Thread(target=worker, args=(i + 1,)) for i in range(num_users)]
 
     start_time = time.time()
@@ -366,11 +451,20 @@ def main():
     aiplatform.init(project=args.project, location=args.region)
     endpoint = aiplatform.Endpoint(args.endpoint_id)
 
-    # Verificar endpoint
+    # Verificar endpoint y detectar si es dedicated
+    dedicated_dns = None
     try:
         print(f"  Endpoint:    {endpoint.display_name}")
         deployed = endpoint.gca_resource.deployed_models
         print(f"  Modelos:     {len(deployed)} desplegado(s)")
+
+        # Detectar dedicated endpoint
+        if endpoint.gca_resource.dedicated_endpoint_dns:
+            dedicated_dns = endpoint.gca_resource.dedicated_endpoint_dns
+            print(f"  Dedicated:   {dedicated_dns}")
+            print(f"  Modo:        REST directo (bypass SSL proxy)")
+        else:
+            print(f"  Modo:        SDK nativo (endpoint.predict)")
     except Exception as e:
         print(f"Error al conectar con el endpoint: {e}")
         sys.exit(1)
@@ -383,6 +477,10 @@ def main():
         model=args.model,
         num_users=args.users,
         hardware=args.hardware,
+        dedicated_dns=dedicated_dns,
+        project=args.project,
+        region=args.region,
+        endpoint_id=args.endpoint_id,
     )
 
     # Guardar resultado
