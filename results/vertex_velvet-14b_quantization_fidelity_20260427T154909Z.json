@@ -1,0 +1,71 @@
+{
+  "backend": "vertex",
+  "model": "velvet-14b",
+  "test_name": "quantization_fidelity",
+  "timestamp": "2026-04-27T15:53:53.706071+00:00",
+  "iterations": 5,
+  "success_rate": 0.4,
+  "latency_mean_s": 2.1404402256011963,
+  "latency_p50_s": 1.7339262962341309,
+  "latency_p90_s": 3.473815250396729,
+  "tokens_per_second": 32.70313219631129,
+  "max_ram_mb": 0.0,
+  "details": {
+    "test_type": "quantization_fidelity",
+    "mode": "single_backend",
+    "calidad_estructura_media": 0.68,
+    "criterios_cumplidos": "2/5",
+    "prompts": [
+      {
+        "prompt_id": "razonamiento_logico",
+        "criterio_cumplido": true,
+        "calidad_estructura": 0.7,
+        "longitud_chars": 212,
+        "tokens_generated": 38,
+        "latency_s": 1.42,
+        "tps": 26.8,
+        "preview": " Los mamíferos son vertebrados porque tienen esqueleto espinal. Los perros son mamíferos y tienen esqueletos espinales por encima del diafragma. Por lo tanto, los perros son vertebrados. La respuesta "
+      },
+      {
+        "prompt_id": "calculo_financiero",
+        "criterio_cumplido": false,
+        "calidad_estructura": 1.0,
+        "longitud_chars": 525,
+        "tokens_generated": 95,
+        "latency_s": 4.01,
+        "tps": 23.7,
+        "preview": " El importe final de la inversión se calcula con la fórmula del interés compuesto:  Im = P * [(1 + i)^n] / ((1 + i)^n - 1)  Donde:  Im: importe final, P: principal o capital inicial, i: tasa de interé"
+      },
+      {
+        "prompt_id": "extraccion_datos",
+        "criterio_cumplido": false,
+        "calidad_estructura": 0.7,
+        "longitud_chars": 308,
+        "tokens_generated": 56,
+        "latency_s": 1.73,
+        "tps": 32.3,
+        "preview": "  Para presentar la información en formato estructurado, se pueden utilizar diferentes estructuras, por ejemplo, un objeto en inglés o un JSON.  Considerar: La información se puede presentar en uno o "
+      },
+      {
+        "prompt_id": "resumen_complejo",
+        "criterio_cumplido": true,
+        "calidad_estructura": 1.0,
+        "longitud_chars": 704,
+        "tokens_generated": 128,
+        "latency_s": 2.67,
+        "tps": 48.0,
+        "preview": " 1. Incrementa la precisión en el diagnóstico: La inteligencia artificial puede analizar enormes cantidades de datos médicos de manera más rápida y precisa que los humanos. Por ejemplo, un estudio de "
+      },
+      {
+        "prompt_id": "traduccion_tecnica",
+        "criterio_cumplido": false,
+        "calidad_estructura": 0.0,
+        "longitud_chars": 0,
+        "tokens_generated": 0,
+        "latency_s": 0.87,
+        "tps": 0.0,
+        "preview": ""
+      }
+    ]
+  }
+}

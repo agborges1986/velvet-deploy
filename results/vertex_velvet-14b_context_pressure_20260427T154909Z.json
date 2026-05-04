@@ -1,0 +1,75 @@
+{
+  "backend": "vertex",
+  "model": "velvet-14b",
+  "test_name": "context_pressure",
+  "timestamp": "2026-04-27T15:53:40.974932+00:00",
+  "iterations": 25,
+  "success_rate": 0.0,
+  "latency_mean_s": 0.0,
+  "latency_p50_s": 0.0,
+  "latency_p90_s": 0.0,
+  "tokens_per_second": 0.0,
+  "max_ram_mb": 0.0,
+  "details": {
+    "test_type": "context_pressure",
+    "niveles": [
+      {
+        "label": "2k",
+        "num_ctx": 2048,
+        "chars_input": 6000,
+        "latency_mean_s": 0.0,
+        "latency_p90_s": 0.0,
+        "tps_mean": 0.0,
+        "success_rate": 0.0,
+        "degradation_pct": 0.0,
+        "iterations": 5
+      },
+      {
+        "label": "4k",
+        "num_ctx": 4096,
+        "chars_input": 12000,
+        "latency_mean_s": 0.0,
+        "latency_p90_s": 0.0,
+        "tps_mean": 0.0,
+        "success_rate": 0.0,
+        "degradation_pct": 0.0,
+        "iterations": 5
+      },
+      {
+        "label": "8k",
+        "num_ctx": 8192,
+        "chars_input": 24000,
+        "latency_mean_s": 0.0,
+        "latency_p90_s": 0.0,
+        "tps_mean": 0.0,
+        "success_rate": 0.0,
+        "degradation_pct": 0.0,
+        "iterations": 5
+      },
+      {
+        "label": "16k",
+        "num_ctx": 16384,
+        "chars_input": 50000,
+        "latency_mean_s": 0.0,
+        "latency_p90_s": 0.0,
+        "tps_mean": 0.0,
+        "success_rate": 0.0,
+        "degradation_pct": 0.0,
+        "iterations": 5
+      },
+      {
+        "label": "32k",
+        "num_ctx": 32768,
+        "chars_input": 100000,
+        "latency_mean_s": 0.0,
+        "latency_p90_s": 0.0,
+        "tps_mean": 0.0,
+        "success_rate": 0.0,
+        "degradation_pct": 0.0,
+        "iterations": 5
+      }
+    ],
+    "tps_base_2k": 0.0,
+    "max_degradation_pct": 0.0
+  }
+}

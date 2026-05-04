@@ -128,7 +128,46 @@ if [[ "$cuantizacion_valida" == false ]]; then
     exit 1
 fi
 
-# ---- Extraer el tamaño del modelo desde el nombre ----
+# ---- Funciones auxiliares ----
+
+# Extraer la familia del modelo desde el nombre del repositorio HuggingFace
+# Entrada: "google/gemma-3-4b-it" → Salida: "gemma"
+# Entrada: "Almawave/Velvet-2B" → Salida: "velvet"
+# Entrada: "meta-llama/Llama-3.1-8B" → Salida: "llama"
+extraer_familia() {
+    local modelo="$1"
+    local nombre_repo
+    # Extraer la parte después del "/" (nombre del repo sin la organización)
+    nombre_repo=$(echo "$modelo" | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')
+    # Extraer la primera secuencia de letras antes de un guión o número
+    local familia
+    familia=$(echo "$nombre_repo" | grep -oE '^[a-z]+' | head -1)
+    if [[ -z "$familia" ]]; then
+        log_error "No se pudo extraer la familia del modelo desde el nombre: '$modelo'"
+        log_error "El nombre del repositorio debe comenzar con letras (ej: 'google/gemma-3-4b-it')"
+        exit 1
+    fi
+    echo "$familia"
+}
+
+# Verificar espacio en disco disponible antes de iniciar la descarga
+# Entrada: directorio a verificar, mínimo en GB (default: 20 GB)
+# Retorna: 0 si hay espacio suficiente, 1 si no
+verificar_espacio_disco() {
+    local directorio="$1"
+    local minimo_gb="${2:-20}"  # 20 GB mínimo por defecto
+    local disponible_kb
+    disponible_kb=$(df -k "$directorio" | tail -1 | awk '{print $4}')
+    local disponible_gb=$((disponible_kb / 1024 / 1024))
+    if [[ "$disponible_gb" -lt "$minimo_gb" ]]; then
+        log_warn "Espacio en disco insuficiente: ${disponible_gb} GB disponibles, se requieren al menos ${minimo_gb} GB."
+        log_warn "Directorio: $directorio"
+        return 1
+    fi
+    return 0
+}
+
+# Extraer el tamaño del modelo desde el nombre
 # Busca patrones como "2B", "14B", "7b", "70b" en el nombre del modelo
 extraer_tamano() {
     local modelo="$1"
@@ -146,9 +185,12 @@ extraer_tamano() {
 TAMANO=$(extraer_tamano "$MODEL")
 log_info "Tamaño del modelo detectado: ${TAMANO}"
 
+FAMILIA=$(extraer_familia "$MODEL")
+log_info "Familia del modelo detectada: ${FAMILIA}"
+
 # ---- Construir nombres de archivos según convención ----
-# Patrón: velvet-{tamaño}-cpu-{versión}-{cuantización}.gguf
-NOMBRE_BASE="velvet-${TAMANO}-cpu-${VERSION}"
+# Patrón: {familia}-{tamaño}-cpu-{versión}-{cuantización}.gguf
+NOMBRE_BASE="${FAMILIA}-${TAMANO}-cpu-${VERSION}"
 NOMBRE_GGUF_F16="${NOMBRE_BASE}-F16.gguf"
 NOMBRE_GGUF_FINAL="${NOMBRE_BASE}-${QUANTIZATION}.gguf"
 
@@ -162,12 +204,16 @@ trap 'rm -rf "$DIR_DESCARGA"' EXIT
 log_info "============================================"
 log_info "Configuración de conversión:"
 log_info "  Modelo HF:       $MODEL"
+log_info "  Familia:         $FAMILIA"
 log_info "  Cuantización:    $QUANTIZATION"
 log_info "  Versión:         $VERSION"
 log_info "  Tamaño:          $TAMANO"
 log_info "  Directorio:      $OUTPUT_DIR"
 log_info "  Archivo final:   $NOMBRE_GGUF_FINAL"
 log_info "============================================"
+
+# ---- Verificar espacio en disco antes de iniciar ----
+verificar_espacio_disco "$OUTPUT_DIR"
 
 # =============================================================================
 # PASO 1: Descargar el modelo desde Hugging Face
@@ -327,6 +373,7 @@ TAMANO_ARCHIVO=$(du -h "$RUTA_GGUF_FINAL" | cut -f1)
 log_info "============================================"
 log_info "¡Conversión completada exitosamente!"
 log_info "  Modelo origen:   $MODEL"
+log_info "  Familia:         $FAMILIA"
 log_info "  Cuantización:    $QUANTIZATION"
 log_info "  Archivo GGUF:    $RUTA_GGUF_FINAL"
 log_info "  Tamaño:          $TAMANO_ARCHIVO"

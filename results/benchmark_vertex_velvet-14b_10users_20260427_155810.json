@@ -1,0 +1,103 @@
+{
+  "model": "velvet-14b",
+  "hardware": "Vertex AI (GPU gestionada)",
+  "concurrent_users": 10,
+  "timestamp": "2026-04-27T15:58:10.372688+00:00",
+  "throughput_tokens_s": 264.9,
+  "latency_mean_s": 13.51,
+  "ttft_mean_s": 13.513,
+  "latency_p50_s": 14.23,
+  "latency_p90_s": 14.75,
+  "latency_p99_s": 15.04,
+  "ttft_p50_s": 14.233,
+  "ttft_p90_s": 14.75,
+  "ttft_p99_s": 15.036,
+  "total_tokens_generated": 3992,
+  "total_requests": 10,
+  "successful_requests": 10,
+  "failed_requests": 0,
+  "total_duration_s": 15.07,
+  "tokens_per_second_per_user": 28.3,
+  "requests": [
+    {
+      "user_id": 1,
+      "success": true,
+      "ttft_s": 14.219,
+      "latency_s": 14.22,
+      "tokens": 427,
+      "tps": 30.0
+    },
+    {
+      "user_id": 2,
+      "success": true,
+      "ttft_s": 15.068,
+      "latency_s": 15.07,
+      "tokens": 480,
+      "tps": 31.9
+    },
+    {
+      "user_id": 3,
+      "success": true,
+      "ttft_s": 13.747,
+      "latency_s": 13.75,
+      "tokens": 481,
+      "tps": 35.0
+    },
+    {
+      "user_id": 4,
+      "success": true,
+      "ttft_s": 14.714,
+      "latency_s": 14.71,
+      "tokens": 493,
+      "tps": 33.5
+    },
+    {
+      "user_id": 5,
+      "success": true,
+      "ttft_s": 14.413,
+      "latency_s": 14.41,
+      "tokens": 490,
+      "tps": 34.0
+    },
+    {
+      "user_id": 6,
+      "success": true,
+      "ttft_s": 8.279,
+      "latency_s": 8.28,
+      "tokens": 1,
+      "tps": 0.1
+    },
+    {
+      "user_id": 7,
+      "success": true,
+      "ttft_s": 13.662,
+      "latency_s": 13.66,
+      "tokens": 390,
+      "tps": 28.5
+    },
+    {
+      "user_id": 8,
+      "success": true,
+      "ttft_s": 12.455,
+      "latency_s": 12.46,
+      "tokens": 335,
+      "tps": 26.9
+    },
+    {
+      "user_id": 9,
+      "success": true,
+      "ttft_s": 14.324,
+      "latency_s": 14.32,
+      "tokens": 443,
+      "tps": 30.9
+    },
+    {
+      "user_id": 10,
+      "success": true,
+      "ttft_s": 14.248,
+      "latency_s": 14.25,
+      "tokens": 452,
+      "tps": 31.7
+    }
+  ]
+}

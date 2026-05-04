@@ -142,8 +142,43 @@ def detectar_idioma(texto: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Envío de solicitud
+# Envío de solicitud (vía BackendAdapter o HTTP directo)
 # ---------------------------------------------------------------------------
+
+def enviar_prompt_adapter(
+    adapter,
+    model: str,
+    prompt: str,
+    system: str,
+) -> dict:
+    """Envía un prompt usando el BackendAdapter y retorna métricas."""
+    try:
+        resp = adapter.generate(
+            model=model,
+            prompt=prompt,
+            system=system,
+            options={"num_ctx": 4096, "temperature": 0.3, "top_p": 0.9},
+        )
+        texto = resp.text
+        return {
+            "success": True,
+            "text": texto,
+            "tokens": resp.tokens_generated,
+            "latency_s": round(resp.latency, 2),
+            "idioma_detectado": detectar_idioma(texto),
+            "longitud_chars": len(texto),
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "text": "",
+            "tokens": 0,
+            "latency_s": 0.0,
+            "idioma_detectado": "error",
+            "longitud_chars": 0,
+            "error": str(e),
+        }
+
 
 def enviar_prompt(
     url: str,
@@ -152,7 +187,7 @@ def enviar_prompt(
     system: str,
     auth: Optional[Tuple[str, str]] = None,
 ) -> dict:
-    """Envía un prompt y retorna la respuesta con métricas."""
+    """Envía un prompt vía HTTP directo (Ollama API) y retorna métricas."""
     import requests
 
     payload = {
@@ -206,8 +241,21 @@ def enviar_prompt(
 # Ejecución del test
 # ---------------------------------------------------------------------------
 
-def run_test(url: str, model: str, auth: Optional[Tuple[str, str]] = None) -> dict:
-    """Ejecuta todos los prompts en ambos idiomas y genera el reporte."""
+def run_test(url: str = None, model: str = None, auth: Optional[Tuple[str, str]] = None, adapter=None) -> dict:
+    """Ejecuta todos los prompts en ambos idiomas y genera el reporte.
+
+    Puede funcionar en dos modos:
+      - HTTP directo: pasando url y opcionalmente auth (modo Ollama legacy).
+      - BackendAdapter: pasando adapter (soporta Ollama y Vertex AI).
+    """
+
+    # Determinar función de envío según el modo
+    if adapter is not None:
+        def _enviar(prompt, system):
+            return enviar_prompt_adapter(adapter, model, prompt, system)
+    else:
+        def _enviar(prompt, system):
+            return enviar_prompt(url, model, prompt, system, auth)
 
     resultados = []
 
@@ -216,9 +264,9 @@ def run_test(url: str, model: str, auth: Optional[Tuple[str, str]] = None) -> di
     print(f" Prompts: {len(PROMPTS)} | Idiomas: Italiano, Español")
     print(f"{'='*90}\n")
 
-    # Warm-up: cargar modelo en memoria antes de medir
+    # Warm-up
     print("  [WARM-UP] Cargando modelo en memoria...")
-    warmup_resp = enviar_prompt(url, model, "Hola", "Responde brevemente.", auth)
+    warmup_resp = _enviar("Hola", "Responde brevemente.")
     if warmup_resp["success"]:
         print(f"  [WARM-UP] Modelo cargado. Latencia warm-up: {warmup_resp['latency_s']}s\n")
     else:
@@ -235,7 +283,7 @@ def run_test(url: str, model: str, auth: Optional[Tuple[str, str]] = None) -> di
             idioma_label = "IT" if idioma == "italiano" else "ES"
 
             print(f"  [{idioma_label}] Enviando prompt...")
-            resp = enviar_prompt(url, model, cfg["prompt"], cfg["system"], auth)
+            resp = _enviar(cfg["prompt"], cfg["system"])
 
             # Evaluar adherencia
             idioma_esperado = idioma
@@ -337,9 +385,17 @@ def main():
     parser = argparse.ArgumentParser(
         description="Test de Adherencia Lingüística: Italiano vs Español para Velvet",
     )
-    parser.add_argument("--url", required=True, help="URL base de la API")
+    parser.add_argument("--backend", default="ollama", choices=["ollama", "vertex"],
+                        help="Backend de inferencia (default: ollama)")
+    parser.add_argument("--url", default=None, help="URL base de la API (modo Ollama HTTP directo)")
     parser.add_argument("--model", required=True, help="Modelo a evaluar o 'all'")
-    parser.add_argument("--auth", default=None, help="Credenciales user:password")
+    parser.add_argument("--auth", default=None, help="Credenciales user:password (modo Ollama)")
+    parser.add_argument("--vertex-project", default=os.environ.get("VERTEX_PROJECT", ""),
+                        help="ID del proyecto GCP (o env VERTEX_PROJECT)")
+    parser.add_argument("--vertex-endpoint-id", default=os.environ.get("VERTEX_ENDPOINT_ID", ""),
+                        help="ID del endpoint de Vertex AI (o env VERTEX_ENDPOINT_ID)")
+    parser.add_argument("--vertex-region", default=os.environ.get("VERTEX_REGION", "us-central1"),
+                        help="Región de GCP (default: us-central1)")
     parser.add_argument("--output-dir", default="./results", help="Directorio de salida")
     args = parser.parse_args()
 
@@ -353,11 +409,30 @@ def main():
 
     models = ["velvet-2b-cpu-v1", "velvet-14b-cpu-v1"] if args.model.lower() == "all" else [args.model]
 
+    # Crear adaptador si se usa backend vertex o si no se pasa URL
+    adapter = None
+    if args.backend == "vertex":
+        from test.adapters import create_adapter
+        from test.models import VertexConfig
+        config = VertexConfig(
+            project=args.vertex_project,
+            region=args.vertex_region,
+            endpoint_id=args.vertex_endpoint_id,
+        )
+        adapter = create_adapter("vertex", config)
+    elif args.url is None:
+        # Sin URL y backend ollama: usar adaptador
+        from test.adapters import create_adapter
+        adapter = create_adapter("ollama")
+
     for model in models:
-        report = run_test(args.url, model, auth)
+        if adapter is not None:
+            report = run_test(model=model, adapter=adapter)
+        else:
+            report = run_test(url=args.url, model=model, auth=auth)
 
         ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        filepath = os.path.join(args.output_dir, f"idioma_{model}_{ts}.json")
+        filepath = os.path.join(args.output_dir, f"idioma_{args.backend}_{model}_{ts}.json")
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(report, f, ensure_ascii=False, indent=2)
         print(f"  Resultado guardado: {filepath}\n")

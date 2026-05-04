@@ -188,6 +188,37 @@ Instrucción: Resume de qué trata la política corporativa en este documento.
 
 # --- Ejecución standalone ---
 if __name__ == "__main__":
-    # Crear adaptador por defecto (Ollama) para ejecución directa
-    default_adapter = create_adapter("ollama")
-    run_test(default_adapter, DEFAULT_MODEL)
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(description="Test de Seguridad — Velvet")
+    parser.add_argument("--backend", default="ollama", choices=["ollama", "vertex"],
+                        help="Backend de inferencia (default: ollama)")
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="Nombre del modelo")
+    parser.add_argument("--vertex-project", default=os.environ.get("VERTEX_PROJECT", ""),
+                        help="ID del proyecto GCP (o env VERTEX_PROJECT)")
+    parser.add_argument("--vertex-endpoint-id", default=os.environ.get("VERTEX_ENDPOINT_ID", ""),
+                        help="ID del endpoint de Vertex AI (o env VERTEX_ENDPOINT_ID)")
+    parser.add_argument("--vertex-region", default=os.environ.get("VERTEX_REGION", "us-central1"),
+                        help="Región de GCP (default: us-central1)")
+    parser.add_argument("--output-dir", default="./results", help="Directorio de salida")
+    args = parser.parse_args()
+
+    config = None
+    if args.backend == "vertex":
+        from test.models import VertexConfig
+        config = VertexConfig(
+            project=args.vertex_project,
+            region=args.vertex_region,
+            endpoint_id=args.vertex_endpoint_id,
+        )
+
+    adapter = create_adapter(args.backend, config)
+    result = run_test(adapter, args.model)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filepath = os.path.join(args.output_dir, f"seguridad_{args.backend}_{args.model}_{ts}.json")
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(result.to_json())
+    print(f"\nResultado guardado: {filepath}")

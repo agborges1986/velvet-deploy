@@ -1,0 +1,34 @@
+{
+  "backend": "ollama",
+  "model": "velvet-14b-cpu-v1",
+  "test_name": "memoria",
+  "timestamp": "2026-05-04T01:05:14.021955+00:00",
+  "iterations": 10,
+  "success_rate": 0.0,
+  "latency_mean_s": 10.151010692119598,
+  "latency_p50_s": 4.849646687507629,
+  "latency_p90_s": 24.436071753501878,
+  "tokens_per_second": 7.050829938133672,
+  "max_ram_mb": 0.0,
+  "details": {
+    "total_requests": 20,
+    "sub_tests": [
+      {
+        "name": "contexto",
+        "success_rate": 0.0,
+        "latency_mean_s": 12.026796364784241,
+        "latency_p50_s": 4.849646687507629,
+        "latency_p90_s": 24.436071753501878,
+        "tokens_per_second": 13.75530579375354
+      },
+      {
+        "name": "razonamiento",
+        "success_rate": 0.0,
+        "latency_mean_s": 8.275225019454956,
+        "latency_p50_s": 2.6032434701919556,
+        "latency_p90_s": 8.364529991149883,
+        "tokens_per_second": 0.346354082513805
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "backend": "ollama",
+  "model": "gemma-4b-cpu-v1",
+  "test_name": "memoria",
+  "timestamp": "2026-05-04T00:44:46.692452+00:00",
+  "iterations": 10,
+  "success_rate": 1.0,
+  "latency_mean_s": 2.9863730788230898,
+  "latency_p50_s": 4.3848717212677,
+  "latency_p90_s": 4.956381320953368,
+  "tokens_per_second": 19.80484966607948,
+  "max_ram_mb": 0.0,
+  "details": {
+    "total_requests": 20,
+    "sub_tests": [
+      {
+        "name": "contexto",
+        "success_rate": 1.0,
+        "latency_mean_s": 4.603691148757934,
+        "latency_p50_s": 4.3848717212677,
+        "latency_p90_s": 4.956381320953368,
+        "tokens_per_second": 18.35538953386109
+      },
+      {
+        "name": "razonamiento",
+        "success_rate": 1.0,
+        "latency_mean_s": 1.3690550088882447,
+        "latency_p50_s": 1.3544639348983765,
+        "latency_p90_s": 1.4522756814956665,
+        "tokens_per_second": 21.25430979829787
+      }
+    ]
+  }
+}

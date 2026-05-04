@@ -1,0 +1,34 @@
+{
+  "backend": "ollama",
+  "model": "gemma-4b-cpu-v1",
+  "test_name": "latency_gap",
+  "timestamp": "2026-05-04T01:03:53.791566+00:00",
+  "iterations": 20,
+  "success_rate": 1.0,
+  "latency_mean_s": 43.14142031669617,
+  "latency_p50_s": 37.66535770893097,
+  "latency_p90_s": 45.12108483314517,
+  "tokens_per_second": 17.310210721007163,
+  "max_ram_mb": 0.0,
+  "details": {
+    "test_type": "latency_gap",
+    "prompt_input_tokens_approx": 1000,
+    "generation_target_tokens": 512,
+    "inferencia_unitaria": {
+      "tps_mean": 17.3,
+      "tps_p50": 17.7,
+      "tps_min": 15.3,
+      "tps_max": 18.3,
+      "latency_mean_s": 43.14,
+      "latency_p50_s": 37.67,
+      "latency_p90_s": 45.12,
+      "tokens_generated_mean": 512,
+      "total_requests": 20,
+      "successful_requests": 20
+    },
+    "cold_start": {
+      "hot_start_latency_s": 17.91,
+      "note": "Cold start real requiere reinicio del servicio. Este valor es hot start."
+    }
+  }
+}

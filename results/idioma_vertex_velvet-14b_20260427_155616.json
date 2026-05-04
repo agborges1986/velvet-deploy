@@ -1,0 +1,138 @@
+{
+  "model": "velvet-14b",
+  "timestamp": "2026-04-27T15:56:16.233597+00:00",
+  "total_prompts": 5,
+  "resumen": {
+    "italiano": {
+      "adherencia": "4/5",
+      "respuestas_utiles": "4/5",
+      "latencia_media_s": 1.76,
+      "tokens_media": 73,
+      "tokens_total": 364
+    },
+    "espanol": {
+      "adherencia": "4/5",
+      "respuestas_utiles": "4/5",
+      "latencia_media_s": 1.85,
+      "tokens_media": 67,
+      "tokens_total": 337
+    }
+  },
+  "detalle": [
+    {
+      "prompt_id": "economia",
+      "italiano": {
+        "idioma_solicitado": "italiano",
+        "idioma_detectado": "italiano",
+        "adherencia": true,
+        "respuesta_util": true,
+        "tokens": 64,
+        "latency_s": 1.72,
+        "longitud_chars": 355,
+        "texto_preview": " Nella tassazione si individuano principalmente quattro categorie di imposte. Le principali sono ___________________________ e _______________________"
+      },
+      "espanol": {
+        "idioma_solicitado": "espanol",
+        "idioma_detectado": "espanol",
+        "adherencia": true,
+        "respuesta_util": true,
+        "tokens": 82,
+        "latency_s": 2.19,
+        "longitud_chars": 453,
+        "texto_preview": " 1. Para los turistas: Se genera demanda ya que en Italia se puede visitar atractivos monumentales.  2. Para la población local: La fabricación y vent"
+      }
+    },
+    {
+      "prompt_id": "finanzas",
+      "italiano": {
+        "idioma_solicitado": "italiano",
+        "idioma_detectado": "vacio",
+        "adherencia": false,
+        "respuesta_util": false,
+        "tokens": 0,
+        "latency_s": 0.76,
+        "longitud_chars": 0,
+        "texto_preview": ""
+      },
+      "espanol": {
+        "idioma_solicitado": "espanol",
+        "idioma_detectado": "espanol",
+        "adherencia": true,
+        "respuesta_util": true,
+        "tokens": 61,
+        "latency_s": 2.1,
+        "longitud_chars": 336,
+        "texto_preview": "  Primero, calculamos los intereses devengados cada año:  Intereses devengados en el primer año = 10.000 EUR x 5% = 500 EUR Intereses devengados en el"
+      }
+    },
+    {
+      "prompt_id": "tecnologia",
+      "italiano": {
+        "idioma_solicitado": "italiano",
+        "idioma_detectado": "italiano",
+        "adherencia": true,
+        "respuesta_util": true,
+        "tokens": 104,
+        "latency_s": 2.05,
+        "longitud_chars": 577,
+        "texto_preview": " I 5 principali vantaggi dell'intelligenza artificiale nel settore bancario sono: 1. Riduzione dei tempi di elaborazione delle richieste di prestito, "
+      },
+      "espanol": {
+        "idioma_solicitado": "espanol",
+        "idioma_detectado": "vacio",
+        "adherencia": false,
+        "respuesta_util": false,
+        "tokens": 0,
+        "latency_s": 0.78,
+        "longitud_chars": 0,
+        "texto_preview": ""
+      }
+    },
+    {
+      "prompt_id": "legal",
+      "italiano": {
+        "idioma_solicitado": "italiano",
+        "idioma_detectado": "italiano",
+        "adherencia": true,
+        "respuesta_util": true,
+        "tokens": 100,
+        "latency_s": 2.15,
+        "longitud_chars": 551,
+        "texto_preview": " Secondo la normativa europea, i consumatori hanno il diritto di ricevere informazioni chiare e complete sui prodotti e servizi acquistati, inclusi de"
+      },
+      "espanol": {
+        "idioma_solicitado": "espanol",
+        "idioma_detectado": "espanol",
+        "adherencia": true,
+        "respuesta_util": true,
+        "tokens": 103,
+        "latency_s": 2.11,
+        "longitud_chars": 568,
+        "texto_preview": " Según la normativa europea (GDPR y Directiva de derechos de los consumidores), los principales derechos de los consumidores son:  1. Derecho a la inf"
+      }
+    },
+    {
+      "prompt_id": "resumen",
+      "italiano": {
+        "idioma_solicitado": "italiano",
+        "idioma_detectado": "italiano",
+        "adherencia": true,
+        "respuesta_util": true,
+        "tokens": 96,
+        "latency_s": 2.11,
+        "longitud_chars": 531,
+        "texto_preview": " L'Unione Europea è un'organizzazione politica ed economica composta da 27 Stati membri, nata nel 1967 con il Trattato di Roma. Inizialmente creata pe"
+      },
+      "espanol": {
+        "idioma_solicitado": "espanol",
+        "idioma_detectado": "espanol",
+        "adherencia": true,
+        "respuesta_util": true,
+        "tokens": 91,
+        "latency_s": 2.05,
+        "longitud_chars": 504,
+        "texto_preview": " La Unión Europea es capaz de hacer frente a challenges que se le presentan, como el alza o la caída de la economía de los países de la Unión, gracias"
+      }
+    }
+  ]
+}

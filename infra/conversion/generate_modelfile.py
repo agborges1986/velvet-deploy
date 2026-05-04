@@ -41,7 +41,16 @@ CONFIGURACION_MODELOS = {
         "temperature": 0.3,
         "top_p": 0.9,
     },
+    "gemma-4b": {
+        "num_ctx": 4096,       # Contexto práctico para CPU con 20 GB RAM
+        "num_predict": 512,    # Alineado con velvet-2b (modelo de tamaño similar ~4B)
+        "temperature": 0.3,    # Consistente con modelos Velvet para evaluación
+        "top_p": 0.9,          # Nucleus sampling estándar
+    },
 }
+
+# Campos obligatorios que toda configuración de modelo debe incluir.
+CAMPOS_OBLIGATORIOS = {"num_ctx", "num_predict", "temperature", "top_p"}
 
 # Prompt de sistema en español, compartido por todos los modelos Velvet.
 # Instruye al modelo a responder de forma profesional, concisa y estructurada.
@@ -49,6 +58,54 @@ PROMPT_SISTEMA = (
     "Eres un asistente profesional. Responde de forma concisa y estructurada "
     "en español. Usa viñetas para listas. Proporciona datos precisos y verificables."
 )
+
+
+def _extraer_componentes(model_name: str) -> tuple[str, str]:
+    """
+    Extrae la familia y el tamaño de un nombre de modelo.
+
+    Separa el nombre usando el último guión como delimitador.
+
+    Ejemplos:
+        "velvet-2b"  → ("velvet", "2b")
+        "gemma-4b"   → ("gemma", "4b")
+        "llama-8b"   → ("llama", "8b")
+
+    Parámetros:
+        model_name: Nombre del modelo con formato "{familia}-{tamaño}"
+
+    Retorna:
+        Tupla (familia, tamaño)
+
+    Lanza:
+        ValueError: Si el nombre no contiene un guión
+    """
+    partes = model_name.rsplit("-", 1)
+    if len(partes) != 2 or not partes[0] or not partes[1]:
+        raise ValueError(
+            f"Formato de nombre inválido: '{model_name}'. "
+            f"Esperado: '{{familia}}-{{tamaño}}'"
+        )
+    return partes[0], partes[1]
+
+
+def _validar_config(model_name: str, config: dict) -> None:
+    """
+    Valida que la configuración del modelo incluya todos los campos obligatorios.
+
+    Parámetros:
+        model_name: Nombre del modelo (para mensajes de error)
+        config:     Diccionario de configuración a validar
+
+    Lanza:
+        ValueError: Si faltan campos obligatorios
+    """
+    faltantes = CAMPOS_OBLIGATORIOS - set(config.keys())
+    if faltantes:
+        raise ValueError(
+            f"Configuración incompleta para '{model_name}': "
+            f"faltan los campos {faltantes}"
+        )
 
 
 def generate_modelfile(
@@ -93,11 +150,15 @@ def generate_modelfile(
     # Obtener la configuración del modelo
     config = CONFIGURACION_MODELOS[model_name]
 
+    # Validar que la configuración tiene todos los campos obligatorios
+    _validar_config(model_name, config)
+
+    # Extraer familia y tamaño del nombre del modelo
+    familia, tamano = _extraer_componentes(model_name)
+
     # Construir el nombre del Modelfile según la convención:
-    # velvet-{tamaño}-cpu-{versión}.Modelfile
-    # Extraer el tamaño del nombre del modelo (ej: "2b" de "velvet-2b")
-    tamano = model_name.replace("velvet-", "")
-    nombre_modelfile = f"velvet-{tamano}-cpu-{version}.Modelfile"
+    # {familia}-{tamaño}-cpu-{versión}.Modelfile
+    nombre_modelfile = f"{familia}-{tamano}-cpu-{version}.Modelfile"
 
     # Crear el directorio de salida si no existe
     os.makedirs(output_dir, exist_ok=True)
@@ -179,7 +240,7 @@ def _parsear_argumentos() -> argparse.Namespace:
         "--model",
         required=True,
         choices=list(CONFIGURACION_MODELOS.keys()),
-        help="Nombre del modelo (velvet-2b o velvet-14b)",
+        help="Nombre del modelo (opciones: velvet-2b, velvet-14b, gemma-4b)",
     )
     parser.add_argument(
         "--gguf-path",

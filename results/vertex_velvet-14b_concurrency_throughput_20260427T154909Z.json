@@ -1,0 +1,91 @@
+{
+  "backend": "vertex",
+  "model": "velvet-14b",
+  "test_name": "concurrency_throughput",
+  "timestamp": "2026-04-27T15:54:16.869354+00:00",
+  "iterations": 36,
+  "success_rate": 1.0,
+  "latency_mean_s": 7.15,
+  "latency_p50_s": 7.45,
+  "latency_p90_s": 7.57,
+  "tokens_per_second": 631.9,
+  "max_ram_mb": 0.0,
+  "details": {
+    "test_type": "concurrency_throughput",
+    "niveles": [
+      {
+        "num_usuarios": 1,
+        "success": true,
+        "throughput_tokens_s": 38.6,
+        "latency_mean_s": 2.02,
+        "latency_p50_s": 2.02,
+        "latency_p90_s": 2.02,
+        "latency_p99_s": 2.02,
+        "tps_per_user_mean": 38.7,
+        "total_tokens": 78,
+        "burst_duration_s": 2.02,
+        "successful": 1,
+        "failed": 0,
+        "success_rate": 1.0,
+        "degradation_pct": 0.0
+      },
+      {
+        "num_usuarios": 5,
+        "success": true,
+        "throughput_tokens_s": 253.4,
+        "latency_mean_s": 4.97,
+        "latency_p50_s": 5.0,
+        "latency_p90_s": 5.05,
+        "latency_p99_s": 5.08,
+        "tps_per_user_mean": 51.9,
+        "total_tokens": 1288,
+        "burst_duration_s": 5.08,
+        "successful": 5,
+        "failed": 0,
+        "success_rate": 1.0,
+        "degradation_pct": -34.1
+      },
+      {
+        "num_usuarios": 10,
+        "success": true,
+        "throughput_tokens_s": 404.4,
+        "latency_mean_s": 5.46,
+        "latency_p50_s": 5.84,
+        "latency_p90_s": 5.88,
+        "latency_p99_s": 5.91,
+        "tps_per_user_mean": 43.0,
+        "total_tokens": 2391,
+        "burst_duration_s": 5.91,
+        "successful": 10,
+        "failed": 0,
+        "success_rate": 1.0,
+        "degradation_pct": -11.1
+      },
+      {
+        "num_usuarios": 20,
+        "success": true,
+        "throughput_tokens_s": 631.9,
+        "latency_mean_s": 7.15,
+        "latency_p50_s": 7.45,
+        "latency_p90_s": 7.57,
+        "latency_p99_s": 7.64,
+        "tps_per_user_mean": 34.4,
+        "total_tokens": 4962,
+        "burst_duration_s": 7.85,
+        "successful": 20,
+        "failed": 0,
+        "success_rate": 1.0,
+        "degradation_pct": 11.1
+      }
+    ],
+    "tps_baseline_1user": 38.7,
+    "max_throughput_tokens_s": 631.9,
+    "punto_saturacion_usuarios": null,
+    "niveles_evaluados": [
+      1,
+      5,
+      10,
+      20
+    ]
+  }
+}

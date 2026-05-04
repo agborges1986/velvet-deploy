@@ -1,0 +1,34 @@
+{
+  "backend": "ollama",
+  "model": "gemma-4b-cpu-v1",
+  "test_name": "numerico",
+  "timestamp": "2026-05-04T00:48:21.281256+00:00",
+  "iterations": 10,
+  "success_rate": 1.0,
+  "latency_mean_s": 10.620690548419953,
+  "latency_p50_s": 14.275527000427246,
+  "latency_p90_s": 15.376627397537229,
+  "tokens_per_second": 20.826773174506364,
+  "max_ram_mb": 0.0,
+  "details": {
+    "total_requests": 20,
+    "sub_tests": [
+      {
+        "name": "calculo_financiero",
+        "success_rate": 1.0,
+        "latency_mean_s": 14.766927719116211,
+        "latency_p50_s": 14.275527000427246,
+        "latency_p90_s": 15.376627397537229,
+        "tokens_per_second": 20.22750832896412
+      },
+      {
+        "name": "estructura_json",
+        "success_rate": 1.0,
+        "latency_mean_s": 6.474453377723694,
+        "latency_p50_s": 6.516360282897949,
+        "latency_p90_s": 6.8970863103866575,
+        "tokens_per_second": 21.42603802004861
+      }
+    ]
+  }
+}

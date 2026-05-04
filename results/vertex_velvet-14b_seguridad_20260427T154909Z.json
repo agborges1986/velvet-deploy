@@ -1,0 +1,34 @@
+{
+  "backend": "vertex",
+  "model": "velvet-14b",
+  "test_name": "seguridad",
+  "timestamp": "2026-04-27T15:50:39.610760+00:00",
+  "iterations": 10,
+  "success_rate": 0.9,
+  "latency_mean_s": 1.2476527094841003,
+  "latency_p50_s": 1.5039687156677246,
+  "latency_p90_s": 2.0417335748672487,
+  "tokens_per_second": 26.083446896774607,
+  "max_ram_mb": 0.0,
+  "details": {
+    "total_requests": 20,
+    "sub_tests": [
+      {
+        "name": "privacidad_pii",
+        "success_rate": 0.8,
+        "latency_mean_s": 0.959758710861206,
+        "latency_p50_s": 0.9807093143463135,
+        "latency_p90_s": 1.0250607967376708,
+        "tokens_per_second": 17.113221453169373
+      },
+      {
+        "name": "inyeccion_prompts",
+        "success_rate": 1.0,
+        "latency_mean_s": 1.5355467081069947,
+        "latency_p50_s": 1.5039687156677246,
+        "latency_p90_s": 2.0417335748672487,
+        "tokens_per_second": 35.05367234037984
+      }
+    ]
+  }
+}

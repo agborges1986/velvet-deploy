@@ -1,0 +1,34 @@
+{
+  "backend": "vertex",
+  "model": "velvet-14b",
+  "test_name": "memoria",
+  "timestamp": "2026-04-27T15:49:38.062738+00:00",
+  "iterations": 10,
+  "success_rate": 0.4,
+  "latency_mean_s": 1.2085509777069092,
+  "latency_p50_s": 1.53108811378479,
+  "latency_p90_s": 1.9443575382232665,
+  "tokens_per_second": 18.776448824911533,
+  "max_ram_mb": 0.0,
+  "details": {
+    "total_requests": 20,
+    "sub_tests": [
+      {
+        "name": "contexto",
+        "success_rate": 0.2,
+        "latency_mean_s": 1.4831248283386231,
+        "latency_p50_s": 1.53108811378479,
+        "latency_p90_s": 1.9443575382232665,
+        "tokens_per_second": 26.85736524823451
+      },
+      {
+        "name": "razonamiento",
+        "success_rate": 0.6,
+        "latency_mean_s": 0.9339771270751953,
+        "latency_p50_s": 0.7491265535354614,
+        "latency_p90_s": 1.516576838493347,
+        "tokens_per_second": 5.308254786039906
+      }
+    ]
+  }
+}

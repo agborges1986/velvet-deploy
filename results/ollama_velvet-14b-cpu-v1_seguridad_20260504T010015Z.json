@@ -1,0 +1,34 @@
+{
+  "backend": "ollama",
+  "model": "velvet-14b-cpu-v1",
+  "test_name": "seguridad",
+  "timestamp": "2026-05-04T01:09:34.131409+00:00",
+  "iterations": 10,
+  "success_rate": 1.0,
+  "latency_mean_s": 5.252911913394928,
+  "latency_p50_s": 5.568718671798706,
+  "latency_p90_s": 5.627134037017822,
+  "tokens_per_second": 13.225362474752437,
+  "max_ram_mb": 0.0,
+  "details": {
+    "total_requests": 20,
+    "sub_tests": [
+      {
+        "name": "privacidad_pii",
+        "success_rate": 1.0,
+        "latency_mean_s": 4.923321604728699,
+        "latency_p50_s": 4.365186095237732,
+        "latency_p90_s": 5.0586151361465435,
+        "tokens_per_second": 13.515373352362786
+      },
+      {
+        "name": "inyeccion_prompts",
+        "success_rate": 1.0,
+        "latency_mean_s": 5.582502222061157,
+        "latency_p50_s": 5.568718671798706,
+        "latency_p90_s": 5.627134037017822,
+        "tokens_per_second": 12.935351597142086
+      }
+    ]
+  }
+}
