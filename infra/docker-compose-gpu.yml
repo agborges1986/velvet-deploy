@@ -1,0 +1,118 @@
+# =============================================================================
+# Docker Compose GPU — Benchmarks de Modelos LLM con NVIDIA A10G
+# =============================================================================
+# Entorno: EC2 g5.2xlarge (8 vCPU, 32 GB RAM, 1x NVIDIA A10G 24 GB VRAM)
+#   - Inferencia GPU con cuantización Q4_K_M
+#   - NVIDIA Container Toolkit requerido (instalado por ec2_setup_gpu.sh)
+#   - Puerto 11434 de Ollama aislado en red interna de Docker
+#   - Acceso externo únicamente a través de Caddy (puerto 8080) con Basic Auth
+#
+# Diferencias con docker-compose.yml (CPU):
+#   - deploy.resources.reservations.devices: GPU NVIDIA
+#   - OLLAMA_NUM_THREAD reducido (la GPU hace el trabajo pesado)
+#   - Sin límite de CPU estricto (la GPU es el recurso principal)
+#   - Más memoria para KV cache en GPU
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Servicio Ollama — Servidor de inferencia LLM (GPU)
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: velvet-ollama-gpu
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./modelfiles:/modelfiles:ro
+      - /home/ec2-user/models:/models:ro
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_KEEP_ALIVE=10m
+      - OLLAMA_NUM_PARALLEL=4
+      - OLLAMA_NUM_THREAD=4
+      # GPU: Ollama detecta automáticamente la GPU con NVIDIA Container Toolkit
+      - OLLAMA_GPU_LAYERS=999
+      # Flash Attention para mejor uso de VRAM
+      - OLLAMA_FLASH_ATTENTION=1
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # ─── Acceso a GPU NVIDIA ───
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ---------------------------------------------------------------------------
+  # Servicio Caddy — Reverse proxy con autenticación Basic Auth
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: velvet-caddy
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_logs:/var/log/caddy
+    environment:
+      - OLLAMA_AUTH_USER=${OLLAMA_AUTH_USER}
+      - OLLAMA_AUTH_HASH=${OLLAMA_AUTH_HASH}
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Servicio Init — Creación de modelos custom desde Modelfiles
+  # ---------------------------------------------------------------------------
+  init:
+    image: ollama/ollama:latest
+    container_name: velvet-init-gpu
+    restart: "no"
+    volumes:
+      - ./modelfiles:/modelfiles:ro
+    environment:
+      - OLLAMA_HOST=ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Esperando a que Ollama esté disponible..."
+        until curl -sf http://ollama:11434/api/tags > /dev/null 2>&1; do
+          echo "Ollama no disponible aún, reintentando en 5s..."
+          sleep 5
+        done
+        echo "Ollama disponible. Creando modelos desde Modelfiles..."
+        for modelfile in /modelfiles/*.Modelfile; do
+          if [ -f "$modelfile" ]; then
+            model_name=$(basename "$modelfile" .Modelfile)
+            echo "Creando modelo: $model_name desde $modelfile"
+            ollama create "$model_name" -f "$modelfile"
+            if [ $? -eq 0 ]; then
+              echo "Modelo $model_name creado exitosamente."
+            else
+              echo "ERROR: Fallo al crear modelo $model_name."
+            fi
+          fi
+        done
+        echo "Inicialización completada. Verificando GPU..."
+        ollama ps 2>/dev/null || true
+        echo "Listo para benchmarks."
+
+volumes:
+  ollama_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_logs:
+    driver: local
